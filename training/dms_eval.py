@@ -39,6 +39,7 @@ def dms_inference_forward(
     alpha_offset: float,
     window_size: int,
     higgs_quantizer=None,
+    aqua_predictors=None,
 ) -> torch.Tensor:
     """
     Forward pass with hard DMS eviction decisions and optional HIGGS quantization.
@@ -117,26 +118,59 @@ def dms_inference_forward(
 
         return hook_fn
 
-    # HIGGS quantization hook for k_proj and v_proj outputs
-    def make_kv_quant_hook():
-        """Post-hook on k_proj/v_proj that quantizes/dequantizes the output."""
+    # AQUA + HIGGS quantization state: track previous layer's reconstructed K,V for prediction
+    aqua_state = {"prev_k": None, "prev_v": None}
+
+    def make_kv_quant_hook(layer_idx, is_key=True):
+        """Post-hook on k_proj/v_proj that applies AQUA prediction + HIGGS residual quantization."""
         def hook_fn(module, input, output):
-            # output shape: [B, T, num_kv_heads * head_dim]
             dtype = output.dtype
             B, T, C = output.shape
-            # Flatten to [B*T, C] for quantizer
             flat = output.reshape(-1, C)
-            deq = higgs_quantizer.quantize_dequantize(flat)
-            return deq.reshape(B, T, C).to(dtype=dtype)
+
+            if aqua_predictors is not None and layer_idx > 0:
+                # AQUA: predict from previous layer, quantize residual
+                if is_key:
+                    pred = aqua_predictors["key_predictors"][layer_idx]
+                    pred = pred.to(flat.device)
+                    predicted = pred(aqua_state["prev_k"])
+                else:
+                    pred = aqua_predictors["value_predictors"][layer_idx]
+                    pred = pred.to(flat.device)
+                    # Value predictor input = [reconstructed_keys, prev_values]
+                    pred_input = torch.cat([aqua_state["cur_k_recon"], aqua_state["prev_v"]], dim=-1)
+                    predicted = pred(pred_input)
+
+                residual = flat - predicted
+                if higgs_quantizer is not None:
+                    residual_deq = higgs_quantizer.quantize_dequantize(residual)
+                else:
+                    residual_deq = residual
+                reconstructed = (predicted + residual_deq).to(dtype=dtype)
+            elif higgs_quantizer is not None:
+                # HIGGS only (no AQUA)
+                reconstructed = higgs_quantizer.quantize_dequantize(flat).to(dtype=dtype)
+            else:
+                reconstructed = flat.to(dtype=dtype)
+
+            # Update AQUA state for next layer
+            if is_key:
+                aqua_state["cur_k_recon"] = reconstructed.detach()
+            else:
+                # After both K and V are processed, update prev for next layer
+                aqua_state["prev_k"] = aqua_state["cur_k_recon"]
+                aqua_state["prev_v"] = reconstructed.detach()
+
+            return reconstructed.reshape(B, T, C)
         return hook_fn
 
     # Register hooks
     for layer_idx, layer in enumerate(model.model.layers):
         attn = layer.self_attn
         hooks.append(attn.register_forward_pre_hook(make_attn_pre_hook(layer_idx), with_kwargs=True))
-        if higgs_quantizer is not None:
-            hooks.append(attn.k_proj.register_forward_hook(make_kv_quant_hook()))
-            hooks.append(attn.v_proj.register_forward_hook(make_kv_quant_hook()))
+        if higgs_quantizer is not None or aqua_predictors is not None:
+            hooks.append(attn.k_proj.register_forward_hook(make_kv_quant_hook(layer_idx, is_key=True)))
+            hooks.append(attn.v_proj.register_forward_hook(make_kv_quant_hook(layer_idx, is_key=False)))
 
     # Forward
     with torch.no_grad():
@@ -164,6 +198,7 @@ def evaluate_ppl(
     alpha_offset: float = 5.0,
     window_size: int = 256,
     higgs_quantizer=None,
+    aqua_predictors=None,
 ):
     """Evaluate PPL on WikiText-2 validation."""
     ds = load_dataset("wikitext", "wikitext-2-raw-v1", split="validation")
@@ -178,13 +213,14 @@ def evaluate_ppl(
         for i in range(n_chunks):
             chunk = tokens[i * seq_len : (i + 1) * seq_len].unsqueeze(0).to(device)
 
-            if use_dms or higgs_quantizer is not None:
+            if use_dms or higgs_quantizer is not None or aqua_predictors is not None:
                 logits, stats = dms_inference_forward(
                     model, chunk,
                     alpha_scale=alpha_scale if use_dms else 0.0,
                     alpha_offset=alpha_offset if use_dms else 999.0,
                     window_size=window_size,
                     higgs_quantizer=higgs_quantizer,
+                    aqua_predictors=aqua_predictors,
                 )
                 total_eviction_rate += stats["eviction_rate"]
             else:
@@ -228,6 +264,7 @@ def main():
     parser.add_argument("--alpha-offset", type=float, default=5.0)
     parser.add_argument("--window-size", type=int, default=256)
     parser.add_argument("--higgs-bits", type=int, default=0, choices=[0, 2, 3, 4], help="HIGGS quantization bits (0=none)")
+    parser.add_argument("--aqua-predictors", type=str, default=None, help="Path to AQUA predictor .pt file")
     parser.add_argument("--output", type=str, default=None, help="Output JSON path")
     args = parser.parse_args()
 
@@ -243,6 +280,12 @@ def main():
         higgs_q = make_higgs_quantizer(args.higgs_bits, kv_channel_size)
         print(f"HIGGS {args.higgs_bits}-bit quantizer: channel_size={kv_channel_size}")
         torch.cuda.empty_cache()
+
+    # Load AQUA predictors if requested
+    aqua_preds = None
+    if args.aqua_predictors:
+        aqua_preds = torch.load(args.aqua_predictors, weights_only=False, map_location=args.device)
+        print(f"AQUA predictors loaded: {len(aqua_preds.get('key_predictors', {}))} key, {len(aqua_preds.get('value_predictors', {}))} value")
 
     # Evaluate vanilla model
     print(f"Loading vanilla model: {args.vanilla_model}")
@@ -299,6 +342,42 @@ def main():
         print(f"  DMS + HIGGS {args.higgs_bits}b PPL: {ppl_dms_higgs:.4f} ({delta_higgs:+.2f}%)")
         print(f"  Total effective CR: {total_cr:.1f}x (DMS {1/(1-evict_rate_higgs):.1f}x × HIGGS {bit_cr:.1f}x)")
 
+    # Evaluate DMS + AQUA (no HIGGS) if AQUA predictors provided
+    ppl_dms_aqua = None
+    delta_dms_aqua = None
+    if aqua_preds is not None:
+        print(f"\nEvaluating DMS + AQUA (no bit quantization)...")
+        ppl_dms_aqua, _ = evaluate_ppl(
+            dms, tokenizer, args.n_chunks, args.seq_len, args.device,
+            use_dms=True,
+            alpha_scale=args.alpha_scale,
+            alpha_offset=args.alpha_offset,
+            window_size=args.window_size,
+            aqua_predictors=aqua_preds,
+        )
+        delta_dms_aqua = (ppl_dms_aqua - ppl_vanilla) / ppl_vanilla * 100
+        print(f"  DMS + AQUA PPL: {ppl_dms_aqua:.4f} ({delta_dms_aqua:+.2f}%)")
+
+    # Evaluate DMS + AQUA + HIGGS (triple composition)
+    ppl_triple = None
+    delta_triple = None
+    if aqua_preds is not None and higgs_q is not None:
+        print(f"\nEvaluating DMS + AQUA + HIGGS {args.higgs_bits}-bit (triple composition)...")
+        ppl_triple, evict_rate_triple = evaluate_ppl(
+            dms, tokenizer, args.n_chunks, args.seq_len, args.device,
+            use_dms=True,
+            alpha_scale=args.alpha_scale,
+            alpha_offset=args.alpha_offset,
+            window_size=args.window_size,
+            higgs_quantizer=higgs_q,
+            aqua_predictors=aqua_preds,
+        )
+        delta_triple = (ppl_triple - ppl_vanilla) / ppl_vanilla * 100
+        bit_cr = 16 / args.higgs_bits
+        total_cr_triple = 1 / (1 - evict_rate_triple) * bit_cr if evict_rate_triple < 1 else float("inf")
+        print(f"  DMS + AQUA + HIGGS {args.higgs_bits}b PPL: {ppl_triple:.4f} ({delta_triple:+.2f}%)")
+        print(f"  Total effective CR: {total_cr_triple:.1f}x")
+
     # Summary
     print(f"\n{'='*60}")
     print(f"SUMMARY")
@@ -311,6 +390,11 @@ def main():
     if ppl_dms_higgs is not None:
         print(f"DMS + HIGGS {args.higgs_bits}b:     {ppl_dms_higgs:.4f} ({delta_higgs:+.2f}%)")
         print(f"Total CR:             {total_cr:.1f}x")
+    if ppl_dms_aqua is not None:
+        print(f"DMS + AQUA:           {ppl_dms_aqua:.4f} ({delta_dms_aqua:+.2f}%)")
+    if ppl_triple is not None:
+        print(f"DMS+AQUA+HIGGS {args.higgs_bits}b:  {ppl_triple:.4f} ({delta_triple:+.2f}%)")
+        print(f"Triple CR:            {total_cr_triple:.1f}x")
 
     results = {
         "model": args.model,
@@ -333,6 +417,13 @@ def main():
         results["ppl_dms_higgs"] = ppl_dms_higgs
         results["delta_dms_higgs_pct"] = delta_higgs
         results["total_cr"] = total_cr
+    if ppl_dms_aqua is not None:
+        results["ppl_dms_aqua"] = ppl_dms_aqua
+        results["delta_dms_aqua_pct"] = delta_dms_aqua
+    if ppl_triple is not None:
+        results["ppl_dms_aqua_higgs"] = ppl_triple
+        results["delta_dms_aqua_higgs_pct"] = delta_triple
+        results["total_cr_triple"] = total_cr_triple
 
     if args.output:
         with open(args.output, "w") as f:
