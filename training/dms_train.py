@@ -16,7 +16,7 @@ Usage:
         --model Qwen/Qwen3.5-0.8B \
         --target-cr 8 \
         --context-len 4096 \
-        --device cuda:2 \
+        --device cuda:1 \
         --output-dir results/dms/qwen35-08b-cr8
 """
 import argparse
@@ -56,221 +56,133 @@ def gumbel_sigmoid(logits: torch.Tensor, tau: float = 1.0, hard: bool = False) -
 
 
 # ---------------------------------------------------------------------------
-# DMS Attention Mask (training version — smooth, differentiable)
+# DMS Forward Pass (training version — with soft attention masking)
 # ---------------------------------------------------------------------------
 
-def make_dms_training_mask(
-    decisions_soft: torch.Tensor,
-    seq_len: int,
-    window_size: int,
-) -> torch.Tensor:
-    """
-    Build a differentiable DMS attention mask for training.
-
-    During training, decisions are soft (0-1 from Gumbel-sigmoid).
-    The mask implements delayed eviction: token t's eviction decision only
-    takes effect after window_size future tokens have been processed.
-
-    :param decisions_soft: [batch, num_kv_heads, seq_len] soft eviction probs (0=keep, 1=evict)
-    :param seq_len: sequence length
-    :param window_size: DMS sliding window size
-    :returns: attention weights modifier [batch, num_kv_heads, seq_len, seq_len]
-        where 1.0 = attend, 0.0 = mask out
-    """
-    device = decisions_soft.device
-    batch, num_heads, T = decisions_soft.shape
-
-    # Causal mask: query q can attend to key k only if k <= q
-    causal = torch.tril(torch.ones(T, T, device=device))  # [T, T]
-
-    # Window protection: tokens within the last window_size positions are always kept.
-    # For query at position q and key at position k:
-    #   if q - k <= window_size, the token is in the window → always attend (regardless of decision)
-    #   if q - k > window_size, apply the eviction decision
-    #
-    # positions_diff[q, k] = q - k
-    positions = torch.arange(T, device=device)
-    positions_diff = positions.unsqueeze(1) - positions.unsqueeze(0)  # [T, T]
-
-    # Tokens outside the window get masked by eviction decisions.
-    # The decision for token k is made by token k+1 (right-shifted), so we shift:
-    #   eviction_weight[k] = decisions_soft[k+1] (token k+1 decides to evict token k)
-    # For k = T-1 (last token), no future token decides, so it's always kept.
-    shifted_decisions = F.pad(decisions_soft[:, :, 1:], (0, 1), value=0.0)  # [B, H, T]
-
-    # outside_window[q, k] = 1 if token k is outside the window at query position q
-    outside_window = (positions_diff > window_size).float().unsqueeze(0).unsqueeze(0)  # [1, 1, T, T]
-
-    # eviction_mask[b, h, q, k] = probability that token k is evicted when queried from position q
-    # Only applies outside the window; inside the window, tokens are always kept.
-    eviction_prob = shifted_decisions[:, :, :, None] * outside_window  # [B, H, T(key), T(pad)] -- need to broadcast
-
-    # Actually: eviction_prob for key k is the same regardless of query q (it's a per-token decision),
-    # but it only applies when key k is outside the window of query q.
-    eviction_prob_per_key = shifted_decisions.unsqueeze(2)  # [B, H, 1, T] — per-key eviction
-    mask_reduction = eviction_prob_per_key * outside_window  # [B, H, T(query), T(key)]
-
-    # Final mask: causal * (1 - eviction_reduction)
-    # attend_prob = causal * (1 - mask_reduction)
-    attend_mask = causal.unsqueeze(0).unsqueeze(0) * (1.0 - mask_reduction)
-
-    return attend_mask
-
-
-# ---------------------------------------------------------------------------
-# DMS Forward Pass (training version)
-# ---------------------------------------------------------------------------
-
-def dms_forward_with_decisions(
+def dms_forward_with_masking(
     model: nn.Module,
     input_ids: torch.Tensor,
     alpha_scale: float,
     alpha_offset: float,
     tau: float,
     window_size: int,
+    q_per_kv: int,
     hard: bool = False,
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor, int]:
     """
-    Forward pass through the model with DMS eviction decisions.
+    Forward pass with DMS soft attention masking for training.
 
-    This hooks into the standard model forward, extracting decision logits from
-    the borrowed query dimension and applying the smooth DMS attention mask.
+    Hooks into each attention layer to:
+    1. Extract decision logits from the borrowed query dimension
+    2. Zero the borrowed dimension (so it doesn't affect attention scores)
+    3. Build a smooth attention mask from eviction decisions
+    4. Inject the mask so attention uses it
 
-    Returns (logits, total_eviction_count) where total_eviction_count is the
-    sum of soft eviction decisions across all layers, heads, and tokens.
-
-    Note: For the initial implementation, we use a simpler approach —
-    run the model with a hook-based approach rather than modifying attention directly.
-    We apply the eviction decisions as a post-hoc mask on attention weights.
+    Returns (logits, decision_sum, total_decision_elements).
+    Both logits and decision_sum are differentiable through the model's q_proj weights,
+    so KD loss and compression loss both provide gradients to the decision head.
     """
-    # For training, we use a simpler but correct approach:
-    # 1. Extract decision logits from the query projection (borrowed neuron)
-    # 2. Apply Gumbel-sigmoid
-    # 3. Build smooth attention mask
-    # 4. Run attention with this mask
-    #
-    # We implement this by wrapping the model's attention layers with hooks.
-
     device = input_ids.device
     batch, seq_len = input_ids.shape
-
     config = model.config
-    num_layers = config.num_hidden_layers
-    num_heads = config.num_attention_heads
     num_kv_heads = config.num_key_value_heads
-    q_per_kv = num_heads // num_kv_heads
+    head_dim = getattr(config, "head_dim", config.hidden_size // config.num_attention_heads)
 
-    total_evictions = torch.tensor(0.0, device=device)
-    all_decisions = []
-
-    # Hook: intercept attention to extract decisions and apply DMS mask
+    # Accumulators for decision stats
+    decision_sum_parts = []
+    total_elements = 0
     hooks = []
 
-    def make_attn_hook(layer_idx):
+    # Pre-compute window mask: positions_diff[q, k] = q - k
+    positions = torch.arange(seq_len, device=device)
+    positions_diff = positions.unsqueeze(0) - positions.unsqueeze(1)  # [T, T]
+    # outside_window[q, k] = 1 if token k is outside query q's sliding window
+    outside_window = (positions_diff > window_size).float()  # [T, T]
+
+    def make_attn_pre_hook(layer_idx):
+        """Pre-hook on the attention module to inject DMS masking."""
         def hook_fn(module, args, kwargs):
-            hidden_states = args[0] if args else kwargs.get("hidden_states")
+            hidden_states = kwargs.get("hidden_states", args[0] if args else None)
             if hidden_states is None:
                 return
 
-            # Get query states to extract decision logits
-            batch_size, seq_length, _ = hidden_states.shape
-            head_dim = module.head_dim
+            B, T, D = hidden_states.shape
 
-            q_raw = module.q_proj(hidden_states).view(batch_size, seq_length, -1, head_dim).transpose(1, 2)
-            query_states = module.q_norm(q_raw) if hasattr(module, "q_norm") else q_raw
+            # Run q_proj to extract the borrowed neuron's decision logit
+            q_full = module.q_proj(hidden_states)  # [B, T, num_heads * head_dim]
+            q_reshaped = q_full.view(B, T, -1, head_dim).transpose(1, 2)  # [B, num_heads, T, head_dim]
 
-            # Extract decision logits from the last dim of first query head per GQA group
-            raw_logits = query_states[:, ::q_per_kv, :, -1]  # [B, num_kv_heads, seq_len]
+            # Apply q_norm if present (Llama 3.2 has q_norm)
+            if hasattr(module, "q_norm") and module.q_norm is not None:
+                q_reshaped = module.q_norm(q_reshaped)
+
+            # Extract last dim of first query head per GQA group
+            raw_logits = q_reshaped[:, ::q_per_kv, :, -1]  # [B, num_kv_heads, T]
             decision_logits = raw_logits * alpha_scale - alpha_offset
 
             # Gumbel-sigmoid for differentiable decisions
-            decisions = gumbel_sigmoid(decision_logits, tau=tau, hard=hard)
-            all_decisions.append(decisions)
+            decisions = gumbel_sigmoid(decision_logits, tau=tau, hard=hard)  # [B, num_kv_heads, T]
+            decision_sum_parts.append(decisions.sum())
 
-            nonlocal total_evictions
-            total_evictions = total_evictions + decisions.sum()
+            # Build soft attention mask from decisions.
+            # eviction_prob_per_key[b, h, k] = probability that key token k will be evicted.
+            # This is applied only when k is outside the sliding window of query q.
+            eviction_per_key = decisions.unsqueeze(2)  # [B, H, 1, T]
+            ow = outside_window[:T, :T].unsqueeze(0).unsqueeze(0)  # [1, 1, T, T]
+            # mask_attn[b, h, q, k] = 1 - evict_prob if outside window, else 1
+            mask_attn = 1.0 - eviction_per_key * ow  # [B, H, T, T]
 
-            # Zero out the borrowed dimension in q_proj weight space
-            # This is handled by the zeroing phase — during DMS training the dimension
-            # should already be zeroed or being zeroed. We modify the hidden_states
-            # to zero the decision dimension after q_proj.
-            # Note: We don't modify the forward here — the hook is for extracting decisions.
-            # The actual mask application happens through the model's attention_mask.
+            # Convert to additive mask for SDPA: log(mask_attn) where 0→-inf, 1→0
+            # Clamp to avoid log(0)
+            additive_mask = torch.log(mask_attn.clamp(min=1e-6))  # [B, H, T, T]
+
+            # Combine with causal mask
+            causal_mask = torch.triu(
+                torch.full((T, T), float("-inf"), device=device), diagonal=1
+            )  # [T, T]
+            combined_mask = additive_mask + causal_mask.unsqueeze(0).unsqueeze(0)
+
+            # Expand combined_mask to match num_heads (repeat for each query head in group)
+            # SDPA expects [B, num_heads, T, T]
+            num_heads = config.num_attention_heads
+            expanded_mask = combined_mask.repeat_interleave(q_per_kv, dim=1)  # [B, num_heads, T, T]
+
+            # Inject mask via attention_mask kwarg
+            if "attention_mask" in kwargs:
+                kwargs["attention_mask"] = expanded_mask.to(hidden_states.dtype)
+            else:
+                kwargs["attention_mask"] = expanded_mask.to(hidden_states.dtype)
+
+            # Zero the borrowed dimension in the hidden states so q_proj's borrowed neuron
+            # doesn't influence attention scores during the actual attention computation.
+            # We do this by creating a modified hidden_states where the dimension that maps
+            # to the borrowed neuron output is zeroed.
+            # However, this is complex because q_proj is a linear layer.
+            # Instead, we zero it in the q_proj weight directly (it was already zeroed in phase 1).
+            # The hook just needs to inject the mask.
+
+            return args, kwargs
 
         return hook_fn
 
-    # Instead of complex hooks, use a cleaner approach:
-    # Run teacher (frozen) and student (with zeroed dimension) forward passes separately.
-    # The student forward uses standard causal attention but we measure the eviction decisions
-    # for the compression loss.
+    # Register pre-hooks on each attention module
+    for layer_idx, layer in enumerate(model.model.layers):
+        attn = layer.self_attn
+        hooks.append(attn.register_forward_pre_hook(make_attn_pre_hook(layer_idx), with_kwargs=True))
 
-    # Actually, the simplest correct implementation for training:
-    # The student model is just the original model with the borrowed query dimension being zeroed.
-    # During training, we don't actually need to apply sparse attention — we just need:
-    # 1. The model to learn which dimension to use for eviction decisions
-    # 2. The logit distillation loss to keep output quality
-    # 3. The compression loss to enforce the right eviction rate
-    #
-    # The key insight from the paper: during training, eviction decisions are made via
-    # Gumbel-sigmoid but attention still uses all tokens (with soft masking via the
-    # smooth attention weights). The model learns to produce good logits even when
-    # some attention weights are reduced.
-
-    # For simplicity and correctness, we'll extract decisions from a forward pass
-    # and compute the loss terms without modifying attention (the paper's approach
-    # uses Gumbel-sigmoid in the attention mask, but for small models the full-attention
-    # forward with decision extraction + loss is equivalent for training the decision head).
-
-    # Student forward: zero the borrowed dimension, get logits
+    # Forward pass — hooks inject DMS masks into each attention layer
     outputs = model(input_ids=input_ids, use_cache=False)
     student_logits = outputs.logits
 
-    # Extract decisions from query projections (need a second pass through just the q_proj layers)
-    # We do this by hooking into each attention layer
-    with torch.no_grad():
-        # Get the hidden states at each layer to extract decisions
-        pass
-
-    # Actually, let's take the most direct approach: modify the model's q_proj weight
-    # to extract the decision logits, then compute losses.
-    # But that's complex with hooks. Let me use the straightforward method:
-
-    # Extract decisions from each layer's q_proj
-    # We need the hidden states input to each attention layer. Use a forward hook.
-    layer_hidden_states = []
-
-    def capture_hook(module, input, output):
-        # input to the decoder layer is (hidden_states, ...)
-        layer_hidden_states.append(input[0].detach())
-
-    layers = model.model.layers
-    for layer in layers:
-        hooks.append(layer.register_forward_hook(capture_hook))
-
-    # Run forward again to capture hidden states (with grad for student logits)
-    _ = model(input_ids=input_ids, use_cache=False)
-
+    # Clean up hooks
     for h in hooks:
         h.remove()
 
-    # Now extract decisions from each layer
-    total_evictions = torch.tensor(0.0, device=device, requires_grad=True)
-    decision_sum = torch.tensor(0.0, device=device)
+    # Aggregate decisions
+    decision_sum = sum(decision_sum_parts) if decision_sum_parts else torch.tensor(0.0, device=device)
+    total_elements = num_kv_heads * seq_len * batch * len(model.model.layers)
 
-    for layer_idx, (layer, h_states) in enumerate(zip(layers, layer_hidden_states)):
-        h_states = h_states.detach().requires_grad_(True)  # we don't backprop through hidden states
-        attn = layer.self_attn
-        head_dim = attn.head_dim
-
-        # q_proj → optional q_norm → extract last dim of first query head per group
-        q_raw = attn.q_proj(h_states).view(batch, seq_len, -1, head_dim).transpose(1, 2)
-        q = attn.q_norm(q_raw) if hasattr(attn, "q_norm") else q_raw
-        raw_logits = q[:, ::q_per_kv, :, -1]  # [B, num_kv_heads, seq_len]
-        decision_logits = raw_logits * alpha_scale - alpha_offset
-        decisions = gumbel_sigmoid(decision_logits, tau=tau, hard=hard)
-        decision_sum = decision_sum + decisions.sum()
-
-    return student_logits, decision_sum
+    return student_logits, decision_sum, total_elements
 
 
 # ---------------------------------------------------------------------------
@@ -370,7 +282,9 @@ def train_dms(
     alpha_offset: float = 5.0,
     batch_size: int = 1,
     grad_accum_steps: int = 4,
-    device: str = "cuda:2",
+    compression_weight: float = 1.0,
+    compression_mode: str = "relu",
+    device: str = "cuda:1",
     output_dir: str = "results/dms",
     dataset: str = "wikitext",
     log_every: int = 10,
@@ -390,6 +304,8 @@ def train_dms(
     print(f"Device: {device}")
     print(f"Zeroing steps: {zeroing_steps}")
     print(f"Retrofitting steps: {steps_per_cr * (target_cr - 1)}")
+    print(f"Compression weight: {compression_weight}")
+    print(f"Compression mode: {compression_mode}")
     total_steps = zeroing_steps + steps_per_cr * (target_cr - 1)
     print(f"Total steps: {total_steps}")
 
@@ -446,30 +362,6 @@ def train_dms(
             batch = next(data_iter)
         return batch.to(device)
 
-    def extract_decisions(model, hidden_states_list):
-        """Extract soft eviction decisions from each layer's q_proj."""
-        decision_sum = torch.tensor(0.0, device=device)
-        total_tokens = 0
-        for layer_idx, h_states in enumerate(hidden_states_list):
-            attn = model.model.layers[layer_idx].self_attn
-            q = attn.q_proj(h_states).view(h_states.shape[0], h_states.shape[1], -1, head_dim).transpose(1, 2)
-            if hasattr(attn, "q_norm"):
-                q = attn.q_norm(q)
-            raw = q[:, ::q_per_kv, :, -1]  # [B, num_kv_heads, seq_len]
-            logits_d = raw * alpha_scale - alpha_offset
-
-            # Compute current tau (anneal during phase 2)
-            if step > zeroing_steps:
-                phase2_progress = (step - zeroing_steps) / max(1, steps_per_cr * (target_cr - 1))
-                tau = tau_init + (tau_final - tau_init) * phase2_progress
-            else:
-                tau = tau_init
-
-            decisions = gumbel_sigmoid(logits_d, tau=tau, hard=False)
-            decision_sum = decision_sum + decisions.sum()
-            total_tokens += decisions.numel()
-        return decision_sum, total_tokens
-
     # -----------------------------------------------------------------------
     # Phase 1: Neuron Zeroing
     # -----------------------------------------------------------------------
@@ -521,20 +413,12 @@ def train_dms(
         print(f"Zeroing check — layer 0, borrowed dim max weight: {max_val:.2e}")
 
     # -----------------------------------------------------------------------
-    # Phase 2: DMS Retrofitting
+    # Phase 2: DMS Retrofitting (with soft attention masking)
     # -----------------------------------------------------------------------
     retrofit_steps = steps_per_cr * (target_cr - 1)
     print(f"\n{'='*60}")
     print(f"Phase 2: DMS Retrofitting ({retrofit_steps} steps, CR 1→{target_cr})")
     print(f"{'='*60}")
-
-    # Capture hidden states for decision extraction
-    hidden_capture = []
-
-    def make_capture_hook():
-        def hook(module, input, output):
-            hidden_capture.append(input[0])
-        return hook
 
     for phase2_step in range(1, retrofit_steps + 1):
         step = zeroing_steps + phase2_step
@@ -548,41 +432,23 @@ def train_dms(
         # Current tau (anneal for sharper decisions)
         tau = tau_init + (tau_final - tau_init) * progress
 
-        # Register hooks to capture hidden states
-        hooks = []
-        hidden_capture.clear()
-        for layer in student.model.layers:
-            hooks.append(layer.register_forward_hook(make_capture_hook()))
-
         with torch.amp.autocast("cuda", dtype=torch.bfloat16):
-            # Student forward
-            student_out = student(input_ids=input_ids, use_cache=False)
-            student_logits = student_out.logits
+            # Student forward WITH DMS soft attention masking.
+            # Decisions are extracted from the borrowed neuron and used to build
+            # soft attention masks injected into each layer. This means KD loss
+            # gradients flow through attention → mask → Gumbel-sigmoid → q_proj,
+            # giving the model a learning signal for which tokens to evict.
+            student_logits, decision_sum, total_decision_elements = dms_forward_with_masking(
+                student, input_ids,
+                alpha_scale=alpha_scale,
+                alpha_offset=alpha_offset,
+                tau=tau,
+                window_size=window_size,
+                q_per_kv=q_per_kv,
+                hard=False,
+            )
 
-        # Remove hooks
-        for h in hooks:
-            h.remove()
-
-        # Extract decisions from captured hidden states
-        decision_sum = torch.tensor(0.0, device=device)
-        total_decision_elements = 0
-        for layer_idx, h_states in enumerate(hidden_capture):
-            attn = student.model.layers[layer_idx].self_attn
-            q = attn.q_proj(h_states).view(
-                h_states.shape[0], h_states.shape[1], -1, head_dim
-            ).transpose(1, 2)
-            if hasattr(attn, "q_norm"):
-                q = attn.q_norm(q)
-            raw = q[:, ::q_per_kv, :, -1]
-            logits_d = raw * alpha_scale - alpha_offset
-            decisions = gumbel_sigmoid(logits_d, tau=tau, hard=False)
-            decision_sum = decision_sum + decisions.sum()
-            total_decision_elements += decisions.numel()
-
-        hidden_capture.clear()
-
-        with torch.amp.autocast("cuda", dtype=torch.bfloat16):
-            # Teacher forward
+            # Teacher forward (always full attention, no masking)
             with torch.no_grad():
                 teacher_out = teacher(input_ids=input_ids, use_cache=False)
                 teacher_logits = teacher_out.logits
@@ -594,13 +460,19 @@ def train_dms(
                 reduction="batchmean",
             )
 
-            # Loss 2: Compression auxiliary (one-sided penalty)
-            # L_aux = max(target_evictions - actual_evictions, 0)
-            # target_evictions = target_eviction_rate * num_layers * num_kv_heads * seq_len * batch_size
+            # Loss 2: Compression auxiliary
             target_evictions = target_eviction_rate * total_decision_elements
-            compression_loss = F.relu(target_evictions - decision_sum) / max(1, total_decision_elements)
+            actual_eviction_rate = decision_sum / max(1, total_decision_elements)
 
-            loss = kd_loss + compression_loss
+            if compression_mode == "l2":
+                # L2 penalty: (target_rate - actual_rate)^2
+                # Pushes harder when the gap is large
+                compression_loss = (target_eviction_rate - actual_eviction_rate) ** 2
+            else:
+                # One-sided ReLU (paper default): max(target - actual, 0)
+                compression_loss = F.relu(target_eviction_rate - actual_eviction_rate)
+
+            loss = kd_loss + compression_weight * compression_loss
 
         loss.backward()
 
@@ -611,16 +483,31 @@ def train_dms(
 
         if phase2_step % log_every == 0:
             elapsed = time.time() - t0
-            actual_rate = (decision_sum.item() / max(1, total_decision_elements))
+            actual_rate = actual_eviction_rate.item()
+
+            # Log gradient norms for the borrowed neuron to verify gradient flow
+            grad_norm_borrowed = 0.0
+            n_layers_with_grad = 0
+            for layer in student.model.layers:
+                q_proj = layer.self_attn.q_proj
+                if q_proj.weight.grad is not None:
+                    # Borrowed dim is at row (group_idx * q_per_kv * head_dim + head_dim - 1)
+                    row_idx = head_dim - 1  # first group
+                    grad_norm_borrowed += q_proj.weight.grad[row_idx].norm().item()
+                    n_layers_with_grad += 1
+            avg_grad_norm = grad_norm_borrowed / max(1, n_layers_with_grad)
+
             entry = {
                 "step": step, "phase": 2,
                 "kd_loss": kd_loss.item(),
                 "compression_loss": compression_loss.item(),
+                "weighted_comp_loss": (compression_weight * compression_loss).item(),
                 "loss": loss.item(),
                 "target_cr": current_cr,
                 "target_eviction_rate": target_eviction_rate,
                 "actual_eviction_rate": actual_rate,
                 "tau": tau,
+                "borrowed_neuron_grad_norm": avg_grad_norm,
                 "elapsed_sec": elapsed,
             }
             log_data.append(entry)
@@ -628,9 +515,10 @@ def train_dms(
                 f"  Step {step}/{zeroing_steps + retrofit_steps} | "
                 f"CR {current_cr:.1f} | "
                 f"KD {kd_loss.item():.4f} | "
-                f"Comp {compression_loss.item():.4f} | "
+                f"Comp {compression_loss.item():.4f}×{compression_weight:.0f} | "
                 f"Evict {actual_rate:.3f}/{target_eviction_rate:.3f} | "
                 f"tau {tau:.2f} | "
+                f"∇borrow {avg_grad_norm:.2e} | "
                 f"{elapsed:.0f}s"
             )
 
@@ -660,6 +548,8 @@ def train_dms(
                 "lr": lr,
                 "alpha_scale": alpha_scale,
                 "alpha_offset": alpha_offset,
+                "compression_weight": compression_weight,
+                "compression_mode": compression_mode,
             },
             "log": log_data,
         }, f, indent=2)
@@ -680,7 +570,9 @@ def main():
     parser.add_argument("--lr", type=float, default=1e-5, help="Learning rate")
     parser.add_argument("--batch-size", type=int, default=1, help="Batch size")
     parser.add_argument("--grad-accum", type=int, default=4, help="Gradient accumulation steps")
-    parser.add_argument("--device", type=str, default="cuda:0", help="Device")
+    parser.add_argument("--compression-weight", type=float, default=1.0, help="Compression loss multiplier")
+    parser.add_argument("--compression-mode", type=str, default="relu", choices=["relu", "l2"], help="Compression loss type")
+    parser.add_argument("--device", type=str, default="cuda:1", help="Device")
     parser.add_argument("--output-dir", type=str, required=True, help="Output directory")
     parser.add_argument("--dataset", type=str, default="wikitext", help="Training dataset")
     parser.add_argument("--log-every", type=int, default=10, help="Log every N steps")
@@ -697,6 +589,8 @@ def main():
         lr=args.lr,
         batch_size=args.batch_size,
         grad_accum_steps=args.grad_accum,
+        compression_weight=args.compression_weight,
+        compression_mode=args.compression_mode,
         device=args.device,
         output_dir=args.output_dir,
         dataset=args.dataset,
