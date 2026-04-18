@@ -95,7 +95,7 @@ def dms_forward_with_masking(
 
     # Pre-compute window mask: positions_diff[q, k] = q - k
     positions = torch.arange(seq_len, device=device)
-    positions_diff = positions.unsqueeze(0) - positions.unsqueeze(1)  # [T, T]
+    positions_diff = positions.unsqueeze(1) - positions.unsqueeze(0)  # [T, T]
     # outside_window[q, k] = 1 if token k is outside query q's sliding window
     outside_window = (positions_diff > window_size).float()  # [T, T]
 
