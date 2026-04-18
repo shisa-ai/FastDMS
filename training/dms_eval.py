@@ -66,7 +66,7 @@ def dms_inference_forward(
 
     # Pre-compute window mask
     positions = torch.arange(seq_len, device=device)
-    positions_diff = positions.unsqueeze(0) - positions.unsqueeze(1)
+    positions_diff = positions.unsqueeze(1) - positions.unsqueeze(0)
     outside_window = (positions_diff > window_size).float()
 
     def make_attn_pre_hook(layer_idx):
