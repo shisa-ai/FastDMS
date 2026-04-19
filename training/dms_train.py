@@ -270,6 +270,7 @@ def load_training_data(
 
 def train_dms(
     model_name: str,
+    teacher_model_name: str | None = None,
     target_cr: int = 8,
     context_len: int = 4096,
     window_size: int = 256,
@@ -309,10 +310,13 @@ def train_dms(
     total_steps = zeroing_steps + steps_per_cr * (target_cr - 1)
     print(f"Total steps: {total_steps}")
 
-    # Load teacher (frozen) and student (trainable) models
+    # Load teacher (frozen) and student (trainable) models.  The teacher can
+    # stay on the original model when continuing from a DMS checkpoint.
+    teacher_model_name = teacher_model_name or model_name
     print("\nLoading teacher model (frozen)...")
+    print(f"Teacher: {teacher_model_name}")
     teacher = AutoModelForCausalLM.from_pretrained(
-        model_name, dtype=torch.bfloat16, device_map={"": device}, trust_remote_code=True
+        teacher_model_name, dtype=torch.bfloat16, device_map={"": device}, trust_remote_code=True
     )
     teacher.eval()
     for p in teacher.parameters():
@@ -540,6 +544,7 @@ def train_dms(
         json.dump({
             "config": {
                 "model": model_name,
+                "teacher_model": teacher_model_name,
                 "target_cr": target_cr,
                 "context_len": context_len,
                 "window_size": window_size,
@@ -562,6 +567,12 @@ def train_dms(
 def main():
     parser = argparse.ArgumentParser(description="Train DMS for KV cache token eviction")
     parser.add_argument("--model", type=str, required=True, help="HuggingFace model name")
+    parser.add_argument(
+        "--teacher-model",
+        type=str,
+        default=None,
+        help="Optional frozen teacher model; useful when continuing from a DMS checkpoint.",
+    )
     parser.add_argument("--target-cr", type=int, default=8, help="Target compression ratio")
     parser.add_argument("--context-len", type=int, default=4096, help="Training context length")
     parser.add_argument("--window-size", type=int, default=256, help="DMS sliding window size")
@@ -581,6 +592,7 @@ def main():
 
     train_dms(
         model_name=args.model,
+        teacher_model_name=args.teacher_model,
         target_cr=args.target_cr,
         context_len=args.context_len,
         window_size=args.window_size,
