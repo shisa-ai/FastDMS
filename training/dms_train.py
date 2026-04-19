@@ -34,6 +34,11 @@ from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 from datasets import load_dataset
 
+try:
+    from .dms_mask import dms_outside_window_mask
+except ImportError:  # pragma: no cover - direct script execution fallback
+    from dms_mask import dms_outside_window_mask
+
 
 # ---------------------------------------------------------------------------
 # Gumbel-Sigmoid (differentiable binary decisions)
@@ -93,11 +98,8 @@ def dms_forward_with_masking(
     total_elements = 0
     hooks = []
 
-    # Pre-compute window mask: positions_diff[q, k] = q - k
-    positions = torch.arange(seq_len, device=device)
-    positions_diff = positions.unsqueeze(1) - positions.unsqueeze(0)  # [T, T]
-    # outside_window[q, k] = 1 if token k is outside query q's sliding window
-    outside_window = (positions_diff > window_size).float()  # [T, T]
+    # outside_window[q, k] = 1 if key token k is outside query q's DMS window.
+    outside_window = dms_outside_window_mask(seq_len, window_size, device=device).float()
 
     def make_attn_pre_hook(layer_idx):
         """Pre-hook on the attention module to inject DMS masking."""

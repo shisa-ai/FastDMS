@@ -31,6 +31,11 @@ import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import load_dataset
 
+try:
+    from .dms_mask import dms_outside_window_mask
+except ImportError:  # pragma: no cover - direct script execution fallback
+    from dms_mask import dms_outside_window_mask
+
 
 def dms_inference_forward(
     model,
@@ -64,10 +69,8 @@ def dms_inference_forward(
     hooks = []
     eviction_counts = []
 
-    # Pre-compute window mask
-    positions = torch.arange(seq_len, device=device)
-    positions_diff = positions.unsqueeze(1) - positions.unsqueeze(0)
-    outside_window = (positions_diff > window_size).float()
+    # Pre-compute window mask.
+    outside_window = dms_outside_window_mask(seq_len, window_size, device=device).float()
 
     def make_attn_pre_hook(layer_idx):
         def hook_fn(module, args, kwargs):
