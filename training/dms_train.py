@@ -73,7 +73,9 @@ def dms_forward_with_masking(
     window_size: int,
     q_per_kv: int,
     hard: bool = False,
-) -> tuple[torch.Tensor, torch.Tensor, int]:
+    cap_live_rates: torch.Tensor | None = None,
+    cap_loss_weights: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor, int, torch.Tensor, dict[str, float]]:
     """
     Forward pass with DMS soft attention masking for training.
 
@@ -83,7 +85,7 @@ def dms_forward_with_masking(
     3. Build a smooth attention mask from eviction decisions
     4. Inject the mask so attention uses it
 
-    Returns (logits, decision_sum, total_decision_elements).
+    Returns (logits, decision_sum, total_decision_elements, cap_loss, cap_stats).
     Both logits and decision_sum are differentiable through the model's q_proj weights,
     so KD loss and compression loss both provide gradients to the decision head.
     """
@@ -95,6 +97,8 @@ def dms_forward_with_masking(
 
     # Accumulators for decision stats
     decision_sum_parts = []
+    cap_loss_parts = []
+    cap_excess_parts = []
     total_elements = 0
     hooks = []
 
@@ -125,6 +129,19 @@ def dms_forward_with_masking(
             # Gumbel-sigmoid for differentiable decisions
             decisions = gumbel_sigmoid(decision_logits, tau=tau, hard=hard)  # [B, num_kv_heads, T]
             decision_sum_parts.append(decisions.sum())
+
+            if cap_live_rates is not None and cap_loss_weights is not None:
+                target_live = cap_live_rates[layer_idx, :num_kv_heads].to(
+                    device=decisions.device, dtype=decisions.dtype
+                )
+                weights = cap_loss_weights[layer_idx, :num_kv_heads].to(
+                    device=decisions.device, dtype=decisions.dtype
+                )
+                live_rate = (1.0 - decisions).mean(dim=(0, 2))  # [num_kv_heads]
+                excess = F.relu(live_rate - target_live)
+                active = (weights > 0).sum().clamp(min=1).to(dtype=decisions.dtype)
+                cap_loss_parts.append((excess.square() * weights).sum() / active)
+                cap_excess_parts.append((excess * weights).sum() / active)
 
             # Build soft attention mask from decisions.
             # eviction_prob_per_key[b, h, k] = probability that key token k will be evicted.
@@ -182,9 +199,99 @@ def dms_forward_with_masking(
 
     # Aggregate decisions
     decision_sum = sum(decision_sum_parts) if decision_sum_parts else torch.tensor(0.0, device=device)
+    cap_loss = (
+        torch.stack(cap_loss_parts).mean()
+        if cap_loss_parts
+        else torch.tensor(0.0, device=device)
+    )
+    cap_excess = (
+        torch.stack(cap_excess_parts).mean().detach()
+        if cap_excess_parts
+        else torch.tensor(0.0, device=device)
+    )
+    cap_active_cells = (
+        int((cap_loss_weights > 0).sum().item())
+        if cap_loss_weights is not None
+        else 0
+    )
+    cap_stats = {
+        "cap_excess_mean": float(cap_excess.item()),
+        "cap_active_cells": float(cap_active_cells),
+    }
     total_elements = num_kv_heads * seq_len * batch * len(model.model.layers)
 
-    return student_logits, decision_sum, total_elements
+    return student_logits, decision_sum, total_elements, cap_loss, cap_stats
+
+
+def load_cap_aware_profile(
+    profile_path: str | None,
+    *,
+    profile_concurrency: int,
+    hot_threshold: int,
+    target_peak: int,
+    physical_capacity: int,
+) -> tuple[torch.Tensor | None, torch.Tensor | None, dict]:
+    """Build per-layer/head live-rate caps from a retained physical peak artifact."""
+    if not profile_path:
+        return None, None, {}
+
+    path = Path(profile_path)
+    with path.open("r", encoding="utf-8") as f:
+        payload = json.load(f)
+
+    rows = payload.get("results", [])
+    candidates = [
+        row for row in rows
+        if row.get("status") == "OK"
+        and int(row.get("concurrency", -1)) == int(profile_concurrency)
+        and row.get("dms_physical_peak_live_blocks_by_layer_head") is not None
+    ]
+    if not candidates:
+        available = [
+            row.get("concurrency")
+            for row in rows
+            if row.get("dms_physical_peak_live_blocks_by_layer_head") is not None
+        ]
+        raise ValueError(
+            f"no cap-aware profile row for concurrency={profile_concurrency}; "
+            f"available={available}"
+        )
+
+    matrix = torch.tensor(
+        candidates[0]["dms_physical_peak_live_blocks_by_layer_head"],
+        dtype=torch.float32,
+    )
+    hot_mask = matrix >= float(hot_threshold)
+    cap_live_rate = min(1.0, max(0.0, float(target_peak) / float(physical_capacity)))
+    cap_rates = torch.ones_like(matrix)
+    cap_rates[hot_mask] = cap_live_rate
+    weights = torch.zeros_like(matrix)
+    if hot_mask.any():
+        max_peak = float(matrix[hot_mask].max().item())
+        weights[hot_mask] = matrix[hot_mask] / max(max_peak, 1.0)
+
+    top = torch.nonzero(hot_mask, as_tuple=False)
+    top_cells = []
+    for layer, head in top.tolist():
+        top_cells.append({
+            "layer": int(layer),
+            "head": int(head),
+            "peak": int(matrix[layer, head].item()),
+        })
+    top_cells.sort(key=lambda item: item["peak"], reverse=True)
+
+    summary = {
+        "profile_path": str(path),
+        "profile_concurrency": int(profile_concurrency),
+        "hot_threshold": int(hot_threshold),
+        "target_peak": int(target_peak),
+        "physical_capacity": int(physical_capacity),
+        "target_live_rate": cap_live_rate,
+        "active_cells": int(hot_mask.sum().item()),
+        "max_profile_peak": int(matrix.max().item()),
+        "top_cells": top_cells[:16],
+    }
+    return cap_rates, weights, summary
 
 
 # ---------------------------------------------------------------------------
@@ -292,6 +399,12 @@ def train_dms(
     dataset: str = "wikitext",
     log_every: int = 10,
     save_every: int = 500,
+    cap_aware_profile: str | None = None,
+    cap_aware_profile_concurrency: int = 8,
+    cap_aware_hot_threshold: int = 20_000,
+    cap_aware_target_peak: int = 20_000,
+    cap_aware_physical_capacity: int = 25_088,
+    cap_aware_weight: float = 0.0,
 ):
     """
     Full DMS training: Phase 1 (neuron zeroing) + Phase 2 (DMS retrofitting).
@@ -309,6 +422,7 @@ def train_dms(
     print(f"Retrofitting steps: {steps_per_cr * (target_cr - 1)}")
     print(f"Compression weight: {compression_weight}")
     print(f"Compression mode: {compression_mode}")
+    print(f"Cap-aware weight: {cap_aware_weight}")
     total_steps = zeroing_steps + steps_per_cr * (target_cr - 1)
     print(f"Total steps: {total_steps}")
 
@@ -350,6 +464,33 @@ def train_dms(
     num_layers = config.num_hidden_layers
     q_per_kv = config.num_attention_heads // num_kv_heads
     head_dim = getattr(config, "head_dim", config.hidden_size // config.num_attention_heads)
+
+    cap_live_rates, cap_loss_weights, cap_summary = load_cap_aware_profile(
+        cap_aware_profile,
+        profile_concurrency=cap_aware_profile_concurrency,
+        hot_threshold=cap_aware_hot_threshold,
+        target_peak=cap_aware_target_peak,
+        physical_capacity=cap_aware_physical_capacity,
+    )
+    if cap_live_rates is not None:
+        if tuple(cap_live_rates.shape) != (num_layers, num_kv_heads):
+            raise ValueError(
+                "cap-aware profile shape mismatch: "
+                f"got {tuple(cap_live_rates.shape)}, expected {(num_layers, num_kv_heads)}"
+            )
+        cap_live_rates = cap_live_rates.to(device=device)
+        cap_loss_weights = cap_loss_weights.to(device=device)
+        print(
+            "Cap-aware profile: "
+            f"{cap_summary['active_cells']} hot cells, "
+            f"target_live_rate={cap_summary['target_live_rate']:.4f}, "
+            f"max_peak={cap_summary['max_profile_peak']}"
+        )
+        for cell in cap_summary["top_cells"][:8]:
+            print(
+                "  hot cell "
+                f"L{cell['layer']} H{cell['head']} peak={cell['peak']}"
+            )
 
     optimizer = torch.optim.AdamW(student.parameters(), lr=lr, betas=(0.9, 0.95), weight_decay=0.0)
 
@@ -444,7 +585,7 @@ def train_dms(
             # soft attention masks injected into each layer. This means KD loss
             # gradients flow through attention → mask → Gumbel-sigmoid → q_proj,
             # giving the model a learning signal for which tokens to evict.
-            student_logits, decision_sum, total_decision_elements = dms_forward_with_masking(
+            student_logits, decision_sum, total_decision_elements, cap_loss, cap_stats = dms_forward_with_masking(
                 student, input_ids,
                 alpha_scale=alpha_scale,
                 alpha_offset=alpha_offset,
@@ -452,6 +593,8 @@ def train_dms(
                 window_size=window_size,
                 q_per_kv=q_per_kv,
                 hard=False,
+                cap_live_rates=cap_live_rates,
+                cap_loss_weights=cap_loss_weights,
             )
 
             # Teacher forward (always full attention, no masking)
@@ -478,7 +621,8 @@ def train_dms(
                 # One-sided ReLU (paper default): max(target - actual, 0)
                 compression_loss = F.relu(target_eviction_rate - actual_eviction_rate)
 
-            loss = kd_loss + compression_weight * compression_loss
+            weighted_cap_loss = cap_aware_weight * cap_loss
+            loss = kd_loss + compression_weight * compression_loss + weighted_cap_loss
 
         loss.backward()
 
@@ -508,6 +652,10 @@ def train_dms(
                 "kd_loss": kd_loss.item(),
                 "compression_loss": compression_loss.item(),
                 "weighted_comp_loss": (compression_weight * compression_loss).item(),
+                "cap_aware_loss": cap_loss.item(),
+                "weighted_cap_aware_loss": weighted_cap_loss.item(),
+                "cap_aware_excess_mean": cap_stats["cap_excess_mean"],
+                "cap_aware_active_cells": cap_stats["cap_active_cells"],
                 "loss": loss.item(),
                 "target_cr": current_cr,
                 "target_eviction_rate": target_eviction_rate,
@@ -522,6 +670,7 @@ def train_dms(
                 f"CR {current_cr:.1f} | "
                 f"KD {kd_loss.item():.4f} | "
                 f"Comp {compression_loss.item():.4f}×{compression_weight:.0f} | "
+                f"Cap {cap_loss.item():.4f}×{cap_aware_weight:.0f} | "
                 f"Evict {actual_rate:.3f}/{target_eviction_rate:.3f} | "
                 f"tau {tau:.2f} | "
                 f"∇borrow {avg_grad_norm:.2e} | "
@@ -557,6 +706,9 @@ def train_dms(
                 "alpha_offset": alpha_offset,
                 "compression_weight": compression_weight,
                 "compression_mode": compression_mode,
+                "cap_aware_weight": cap_aware_weight,
+                "cap_aware_profile": cap_aware_profile,
+                "cap_aware_profile_summary": cap_summary,
             },
             "log": log_data,
         }, f, indent=2)
@@ -585,6 +737,12 @@ def main():
     parser.add_argument("--grad-accum", type=int, default=4, help="Gradient accumulation steps")
     parser.add_argument("--compression-weight", type=float, default=1.0, help="Compression loss multiplier")
     parser.add_argument("--compression-mode", type=str, default="relu", choices=["relu", "l2"], help="Compression loss type")
+    parser.add_argument("--cap-aware-profile", type=str, default=None, help="Physical peak artifact used to build per-head live-rate caps")
+    parser.add_argument("--cap-aware-profile-concurrency", type=int, default=8, help="Profile row concurrency to use for cap-aware training")
+    parser.add_argument("--cap-aware-hot-threshold", type=int, default=20_000, help="Only profile cells at or above this peak receive cap loss")
+    parser.add_argument("--cap-aware-target-peak", type=int, default=20_000, help="Target per-layer/head peak used to derive live-rate cap")
+    parser.add_argument("--cap-aware-physical-capacity", type=int, default=25_088, help="Physical cap used to convert target peak to live-rate cap")
+    parser.add_argument("--cap-aware-weight", type=float, default=0.0, help="Per-head cap loss multiplier")
     parser.add_argument("--device", type=str, default="cuda:1", help="Device")
     parser.add_argument("--output-dir", type=str, required=True, help="Output directory")
     parser.add_argument("--dataset", type=str, default="wikitext", help="Training dataset")
@@ -610,6 +768,12 @@ def main():
         dataset=args.dataset,
         log_every=args.log_every,
         save_every=args.save_every,
+        cap_aware_profile=args.cap_aware_profile,
+        cap_aware_profile_concurrency=args.cap_aware_profile_concurrency,
+        cap_aware_hot_threshold=args.cap_aware_hot_threshold,
+        cap_aware_target_peak=args.cap_aware_target_peak,
+        cap_aware_physical_capacity=args.cap_aware_physical_capacity,
+        cap_aware_weight=args.cap_aware_weight,
     )
 
 
