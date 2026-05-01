@@ -28,7 +28,7 @@ from fastdms.utils.profiler import get_profiler
 
 
 def compact_greedy_fast_loop_enabled() -> bool:
-    value = os.environ.get("NANOVLLM_COMPACT_GREEDY_FAST_LOOP", "1").strip().lower()
+    value = os.environ.get("FASTDMS_COMPACT_GREEDY_FAST_LOOP", "1").strip().lower()
     return value not in {"0", "false", "no", "off"}
 
 
@@ -49,7 +49,7 @@ class ModelRunner:
         self.last_dms_decode_stats: list[dict] = []
         self.compact_live_tokens_peak = 0
         self.compact_live_tokens_peak_device: torch.Tensor | None = None
-        graph_mode = os.environ.get("NANOVLLM_COMPACT_DECODE_CUDAGRAPH", "auto").strip().lower()
+        graph_mode = os.environ.get("FASTDMS_COMPACT_DECODE_CUDAGRAPH", "auto").strip().lower()
         graph_default = config.compact_kv_enabled and config.compact_kv_retention_mode == "dms"
         self.compact_decode_cudagraph = graph_mode in {"1", "true", "yes", "on"} or (
             graph_mode in {"", "auto"} and graph_default
@@ -62,7 +62,7 @@ class ModelRunner:
         self.compact_greedy_graph_storage_signature: dict[int, tuple] = {}
         self.compact_graph_pool = None
 
-        dist_port = int(os.environ.get("NANOVLLM_DIST_PORT", "2333"))
+        dist_port = int(os.environ.get("FASTDMS_DIST_PORT", "2333"))
         dist.init_process_group("nccl", f"tcp://localhost:{dist_port}", world_size=self.world_size, rank=rank)
         torch.cuda.set_device(rank)
         default_dtype = torch.get_default_dtype()
@@ -77,7 +77,7 @@ class ModelRunner:
         if fp8_weights_enabled() and fp8_lm_head_enabled():
             lm_head = getattr(self.model, "lm_head", None)
             if lm_head is None or not hasattr(lm_head, "quantize_weight_to_fp8"):
-                raise RuntimeError("NANOVLLM_FP8_LM_HEAD requires a quantizable lm_head")
+                raise RuntimeError("FASTDMS_FP8_LM_HEAD requires a quantizable lm_head")
             embed_tokens = getattr(getattr(self.model, "model", None), "embed_tokens", None)
             tied_embedding = (
                 fp8_embedding
@@ -94,7 +94,7 @@ class ModelRunner:
         if fp8_embedding:
             embed_tokens = getattr(getattr(self.model, "model", None), "embed_tokens", None)
             if embed_tokens is None or not hasattr(embed_tokens, "quantize_embedding_to_fp8"):
-                raise RuntimeError("NANOVLLM_FP8_EMBEDDING requires quantizable embed_tokens")
+                raise RuntimeError("FASTDMS_FP8_EMBEDDING requires quantizable embed_tokens")
             lm_head = getattr(self.model, "lm_head", None)
             use_lm_head_storage = bool(
                 fp8_embedding_share_lm_head_weight()
@@ -344,7 +344,7 @@ class ModelRunner:
                 use_per_layer
                 and (
                     config.compact_kv_layer_major_metadata
-                    or os.environ.get("NANOVLLM_COMPACT_LAYER_MAJOR_METADATA") == "1"
+                    or os.environ.get("FASTDMS_COMPACT_LAYER_MAJOR_METADATA") == "1"
                 )
             )
             config.compact_kv_layer_major_metadata = use_layer_major_metadata

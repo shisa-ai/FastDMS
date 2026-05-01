@@ -81,35 +81,35 @@ def test_pack_compact_kv_reference_decode():
 
 
 def test_streaming_pack_cache_live_env():
-    old_env = os.environ.get("NANOVLLM_STREAMING_PACK_CACHE_LIVE")
+    old_env = os.environ.get("FASTDMS_STREAMING_PACK_CACHE_LIVE")
     try:
-        os.environ.pop("NANOVLLM_STREAMING_PACK_CACHE_LIVE", None)
+        os.environ.pop("FASTDMS_STREAMING_PACK_CACHE_LIVE", None)
         assert streaming_pack_cache_live_enabled()
-        os.environ["NANOVLLM_STREAMING_PACK_CACHE_LIVE"] = "0"
+        os.environ["FASTDMS_STREAMING_PACK_CACHE_LIVE"] = "0"
         assert not streaming_pack_cache_live_enabled()
-        os.environ["NANOVLLM_STREAMING_PACK_CACHE_LIVE"] = "1"
+        os.environ["FASTDMS_STREAMING_PACK_CACHE_LIVE"] = "1"
         assert streaming_pack_cache_live_enabled()
     finally:
         if old_env is None:
-            os.environ.pop("NANOVLLM_STREAMING_PACK_CACHE_LIVE", None)
+            os.environ.pop("FASTDMS_STREAMING_PACK_CACHE_LIVE", None)
         else:
-            os.environ["NANOVLLM_STREAMING_PACK_CACHE_LIVE"] = old_env
+            os.environ["FASTDMS_STREAMING_PACK_CACHE_LIVE"] = old_env
 
 
 def test_streaming_pack_fused_rank_env():
-    old_env = os.environ.get("NANOVLLM_STREAMING_PACK_FUSED_RANK_TRITON")
+    old_env = os.environ.get("FASTDMS_STREAMING_PACK_FUSED_RANK_TRITON")
     try:
-        os.environ.pop("NANOVLLM_STREAMING_PACK_FUSED_RANK_TRITON", None)
+        os.environ.pop("FASTDMS_STREAMING_PACK_FUSED_RANK_TRITON", None)
         assert streaming_pack_fused_rank_triton_enabled()
-        os.environ["NANOVLLM_STREAMING_PACK_FUSED_RANK_TRITON"] = "0"
+        os.environ["FASTDMS_STREAMING_PACK_FUSED_RANK_TRITON"] = "0"
         assert not streaming_pack_fused_rank_triton_enabled()
-        os.environ["NANOVLLM_STREAMING_PACK_FUSED_RANK_TRITON"] = "1"
+        os.environ["FASTDMS_STREAMING_PACK_FUSED_RANK_TRITON"] = "1"
         assert streaming_pack_fused_rank_triton_enabled()
     finally:
         if old_env is None:
-            os.environ.pop("NANOVLLM_STREAMING_PACK_FUSED_RANK_TRITON", None)
+            os.environ.pop("FASTDMS_STREAMING_PACK_FUSED_RANK_TRITON", None)
         else:
-            os.environ["NANOVLLM_STREAMING_PACK_FUSED_RANK_TRITON"] = old_env
+            os.environ["FASTDMS_STREAMING_PACK_FUSED_RANK_TRITON"] = old_env
 
 
 def test_load_dms_metadata_reads_hf_config_dms_aliases(tmp_path):
@@ -143,19 +143,19 @@ def test_load_dms_metadata_reads_hf_config_dms_aliases(tmp_path):
 
 
 def test_dms_decode_store_transient_k_env():
-    old_env = os.environ.get("NANOVLLM_DMS_DECODE_STORE_TRANSIENT_K")
+    old_env = os.environ.get("FASTDMS_DMS_DECODE_STORE_TRANSIENT_K")
     try:
-        os.environ.pop("NANOVLLM_DMS_DECODE_STORE_TRANSIENT_K", None)
+        os.environ.pop("FASTDMS_DMS_DECODE_STORE_TRANSIENT_K", None)
         assert not dms_decode_store_transient_k_enabled()
-        os.environ["NANOVLLM_DMS_DECODE_STORE_TRANSIENT_K"] = "1"
+        os.environ["FASTDMS_DMS_DECODE_STORE_TRANSIENT_K"] = "1"
         assert dms_decode_store_transient_k_enabled()
-        os.environ["NANOVLLM_DMS_DECODE_STORE_TRANSIENT_K"] = "0"
+        os.environ["FASTDMS_DMS_DECODE_STORE_TRANSIENT_K"] = "0"
         assert not dms_decode_store_transient_k_enabled()
     finally:
         if old_env is None:
-            os.environ.pop("NANOVLLM_DMS_DECODE_STORE_TRANSIENT_K", None)
+            os.environ.pop("FASTDMS_DMS_DECODE_STORE_TRANSIENT_K", None)
         else:
-            os.environ["NANOVLLM_DMS_DECODE_STORE_TRANSIENT_K"] = old_env
+            os.environ["FASTDMS_DMS_DECODE_STORE_TRANSIENT_K"] = old_env
 
 
 def test_compact_kv_manager_allocates_and_releases_sequence_spans():
@@ -534,17 +534,17 @@ def test_fp8_row1_matvec_matches_dequantized_linear():
 
 
 def test_fp8_row1_matvec_impl_env():
-    old = os.environ.get("NANOVLLM_FP8_ROW1_MATVEC_IMPL")
+    old = os.environ.get("FASTDMS_FP8_ROW1_MATVEC_IMPL")
     try:
-        os.environ["NANOVLLM_FP8_ROW1_MATVEC_IMPL"] = "dot"
+        os.environ["FASTDMS_FP8_ROW1_MATVEC_IMPL"] = "dot"
         assert fp8_row1_matvec_impl() == "dot"
-        os.environ["NANOVLLM_FP8_ROW1_MATVEC_IMPL"] = "scalar"
+        os.environ["FASTDMS_FP8_ROW1_MATVEC_IMPL"] = "scalar"
         assert fp8_row1_matvec_impl() == "scalar"
     finally:
         if old is None:
-            os.environ.pop("NANOVLLM_FP8_ROW1_MATVEC_IMPL", None)
+            os.environ.pop("FASTDMS_FP8_ROW1_MATVEC_IMPL", None)
         else:
-            os.environ["NANOVLLM_FP8_ROW1_MATVEC_IMPL"] = old
+            os.environ["FASTDMS_FP8_ROW1_MATVEC_IMPL"] = old
 
 
 def test_int4_row1_matvec_matches_manual_quantized_linear():
@@ -615,72 +615,72 @@ def test_int4_row1_asymmetric_matvec_matches_manual_quantized_linear():
 
 
 def test_int4_row1_quant_mode_env():
-    old = os.environ.get("NANOVLLM_INT4_ROW1_QUANT_MODE")
+    old = os.environ.get("FASTDMS_INT4_ROW1_QUANT_MODE")
     try:
-        os.environ.pop("NANOVLLM_INT4_ROW1_QUANT_MODE", None)
+        os.environ.pop("FASTDMS_INT4_ROW1_QUANT_MODE", None)
         assert int4_row1_quant_mode() == "symmetric"
-        os.environ["NANOVLLM_INT4_ROW1_QUANT_MODE"] = "asymmetric"
+        os.environ["FASTDMS_INT4_ROW1_QUANT_MODE"] = "asymmetric"
         assert int4_row1_quant_mode() == "asymmetric"
-        os.environ["NANOVLLM_INT4_ROW1_QUANT_MODE"] = "affine"
+        os.environ["FASTDMS_INT4_ROW1_QUANT_MODE"] = "affine"
         assert int4_row1_quant_mode() == "asymmetric"
     finally:
         if old is None:
-            os.environ.pop("NANOVLLM_INT4_ROW1_QUANT_MODE", None)
+            os.environ.pop("FASTDMS_INT4_ROW1_QUANT_MODE", None)
         else:
-            os.environ["NANOVLLM_INT4_ROW1_QUANT_MODE"] = old
+            os.environ["FASTDMS_INT4_ROW1_QUANT_MODE"] = old
 
 
 def test_int4_row1_max_rows_env():
-    old = os.environ.get("NANOVLLM_INT4_ROW1_MAX_ROWS")
+    old = os.environ.get("FASTDMS_INT4_ROW1_MAX_ROWS")
     try:
-        os.environ.pop("NANOVLLM_INT4_ROW1_MAX_ROWS", None)
+        os.environ.pop("FASTDMS_INT4_ROW1_MAX_ROWS", None)
         assert int4_row1_max_rows() == 1
-        os.environ["NANOVLLM_INT4_ROW1_MAX_ROWS"] = "8"
+        os.environ["FASTDMS_INT4_ROW1_MAX_ROWS"] = "8"
         assert int4_row1_max_rows() == 8
     finally:
         if old is None:
-            os.environ.pop("NANOVLLM_INT4_ROW1_MAX_ROWS", None)
+            os.environ.pop("FASTDMS_INT4_ROW1_MAX_ROWS", None)
         else:
-            os.environ["NANOVLLM_INT4_ROW1_MAX_ROWS"] = old
+            os.environ["FASTDMS_INT4_ROW1_MAX_ROWS"] = old
 
 
 def test_int4_row1_scope_env():
-    old_enabled = os.environ.get("NANOVLLM_INT4_ROW1_WEIGHTS")
-    old_scope = os.environ.get("NANOVLLM_INT4_ROW1_SCOPE")
+    old_enabled = os.environ.get("FASTDMS_INT4_ROW1_WEIGHTS")
+    old_scope = os.environ.get("FASTDMS_INT4_ROW1_SCOPE")
     try:
-        os.environ.pop("NANOVLLM_INT4_ROW1_WEIGHTS", None)
-        os.environ.pop("NANOVLLM_INT4_ROW1_SCOPE", None)
+        os.environ.pop("FASTDMS_INT4_ROW1_WEIGHTS", None)
+        os.environ.pop("FASTDMS_INT4_ROW1_SCOPE", None)
         assert not int4_row1_lm_head_enabled()
         assert int4_row1_module_in_scope("model.layers.0.mlp.gate_up_proj")
 
-        os.environ["NANOVLLM_INT4_ROW1_WEIGHTS"] = "1"
-        os.environ["NANOVLLM_INT4_ROW1_SCOPE"] = "mlp"
+        os.environ["FASTDMS_INT4_ROW1_WEIGHTS"] = "1"
+        os.environ["FASTDMS_INT4_ROW1_SCOPE"] = "mlp"
         assert int4_row1_module_in_scope("model.layers.0.mlp.gate_up_proj")
         assert int4_row1_module_in_scope("model.layers.0.mlp.down_proj")
         assert not int4_row1_module_in_scope("model.layers.0.self_attn.qkv_proj")
         assert not int4_row1_lm_head_enabled()
 
-        os.environ["NANOVLLM_INT4_ROW1_SCOPE"] = "mlp_lm_head"
+        os.environ["FASTDMS_INT4_ROW1_SCOPE"] = "mlp_lm_head"
         assert int4_row1_module_in_scope("model.layers.0.mlp.gate_up_proj")
         assert int4_row1_lm_head_enabled()
 
-        os.environ["NANOVLLM_INT4_ROW1_SCOPE"] = "mlp,qkv"
+        os.environ["FASTDMS_INT4_ROW1_SCOPE"] = "mlp,qkv"
         assert int4_row1_module_in_scope("model.layers.0.mlp.gate_up_proj")
         assert int4_row1_module_in_scope("model.layers.0.self_attn.qkv_proj")
         assert not int4_row1_module_in_scope("model.layers.0.self_attn.o_proj")
         assert not int4_row1_lm_head_enabled()
 
-        os.environ["NANOVLLM_INT4_ROW1_SCOPE"] = "mlp+attn_out+lm_head"
+        os.environ["FASTDMS_INT4_ROW1_SCOPE"] = "mlp+attn_out+lm_head"
         assert int4_row1_module_in_scope("model.layers.0.mlp.down_proj")
         assert not int4_row1_module_in_scope("model.layers.0.self_attn.qkv_proj")
         assert int4_row1_module_in_scope("model.layers.0.self_attn.o_proj")
         assert int4_row1_lm_head_enabled()
 
-        os.environ["NANOVLLM_INT4_ROW1_SCOPE"] = "all"
+        os.environ["FASTDMS_INT4_ROW1_SCOPE"] = "all"
         assert int4_row1_module_in_scope("model.layers.0.self_attn.qkv_proj")
         assert int4_row1_lm_head_enabled()
 
-        os.environ["NANOVLLM_INT4_ROW1_SCOPE"] = "mlp+qkv+attn_out@0-7"
+        os.environ["FASTDMS_INT4_ROW1_SCOPE"] = "mlp+qkv+attn_out@0-7"
         assert int4_row1_module_in_scope("model.layers.3.mlp.gate_up_proj")
         assert int4_row1_module_in_scope("model.layers.12.mlp.down_proj")
         assert int4_row1_module_in_scope("model.layers.4.self_attn.qkv_proj")
@@ -688,14 +688,14 @@ def test_int4_row1_scope_env():
         assert not int4_row1_module_in_scope("model.layers.8.self_attn.o_proj")
         assert not int4_row1_lm_head_enabled()
 
-        os.environ["NANOVLLM_INT4_ROW1_SCOPE"] = "attn_out@even"
+        os.environ["FASTDMS_INT4_ROW1_SCOPE"] = "attn_out@even"
         assert int4_row1_module_in_scope("model.layers.2.self_attn.o_proj")
         assert not int4_row1_module_in_scope("model.layers.3.self_attn.o_proj")
         assert not int4_row1_module_in_scope("lm_head")
     finally:
         for name, value in (
-            ("NANOVLLM_INT4_ROW1_WEIGHTS", old_enabled),
-            ("NANOVLLM_INT4_ROW1_SCOPE", old_scope),
+            ("FASTDMS_INT4_ROW1_WEIGHTS", old_enabled),
+            ("FASTDMS_INT4_ROW1_SCOPE", old_scope),
         ):
             if value is None:
                 os.environ.pop(name, None)
@@ -704,94 +704,94 @@ def test_int4_row1_scope_env():
 
 
 def test_fp8_down_row1_triton_truthy_env_uses_quantized():
-    old = os.environ.get("NANOVLLM_FP8_DOWN_ROW1_TRITON")
+    old = os.environ.get("FASTDMS_FP8_DOWN_ROW1_TRITON")
     try:
-        os.environ.pop("NANOVLLM_FP8_DOWN_ROW1_TRITON", None)
+        os.environ.pop("FASTDMS_FP8_DOWN_ROW1_TRITON", None)
         assert fp8_down_row1_triton_mode() == "quantized"
-        os.environ["NANOVLLM_FP8_DOWN_ROW1_TRITON"] = "1"
+        os.environ["FASTDMS_FP8_DOWN_ROW1_TRITON"] = "1"
         assert fp8_down_row1_triton_mode() == "quantized"
-        os.environ["NANOVLLM_FP8_DOWN_ROW1_TRITON"] = "raw_unsafe"
+        os.environ["FASTDMS_FP8_DOWN_ROW1_TRITON"] = "raw_unsafe"
         assert fp8_down_row1_triton_mode() == "raw"
     finally:
         if old is None:
-            os.environ.pop("NANOVLLM_FP8_DOWN_ROW1_TRITON", None)
+            os.environ.pop("FASTDMS_FP8_DOWN_ROW1_TRITON", None)
         else:
-            os.environ["NANOVLLM_FP8_DOWN_ROW1_TRITON"] = old
+            os.environ["FASTDMS_FP8_DOWN_ROW1_TRITON"] = old
 
 
 def test_fp8_row1_triton_env():
-    old = os.environ.get("NANOVLLM_FP8_ROW1_TRITON")
+    old = os.environ.get("FASTDMS_FP8_ROW1_TRITON")
     try:
-        os.environ.pop("NANOVLLM_FP8_ROW1_TRITON", None)
+        os.environ.pop("FASTDMS_FP8_ROW1_TRITON", None)
         assert fp8_row1_triton_mode() == "off"
         assert not fp8_row1_triton_enabled()
-        os.environ["NANOVLLM_FP8_ROW1_TRITON"] = "1"
+        os.environ["FASTDMS_FP8_ROW1_TRITON"] = "1"
         assert fp8_row1_triton_mode() == "quantized"
         assert fp8_row1_triton_enabled()
-        os.environ["NANOVLLM_FP8_ROW1_TRITON"] = "raw_unsafe"
+        os.environ["FASTDMS_FP8_ROW1_TRITON"] = "raw_unsafe"
         assert fp8_row1_triton_mode() == "raw"
     finally:
         if old is None:
-            os.environ.pop("NANOVLLM_FP8_ROW1_TRITON", None)
+            os.environ.pop("FASTDMS_FP8_ROW1_TRITON", None)
         else:
-            os.environ["NANOVLLM_FP8_ROW1_TRITON"] = old
+            os.environ["FASTDMS_FP8_ROW1_TRITON"] = old
 
 
 def test_fp8_gate_up_row1_triton_env():
-    old = os.environ.get("NANOVLLM_FP8_GATE_UP_ROW1_TRITON")
+    old = os.environ.get("FASTDMS_FP8_GATE_UP_ROW1_TRITON")
     try:
-        os.environ.pop("NANOVLLM_FP8_GATE_UP_ROW1_TRITON", None)
+        os.environ.pop("FASTDMS_FP8_GATE_UP_ROW1_TRITON", None)
         assert fp8_gate_up_row1_triton_mode() == "quantized"
         assert fp8_gate_up_row1_triton_enabled()
-        os.environ["NANOVLLM_FP8_GATE_UP_ROW1_TRITON"] = "0"
+        os.environ["FASTDMS_FP8_GATE_UP_ROW1_TRITON"] = "0"
         assert fp8_gate_up_row1_triton_mode() == "off"
         assert not fp8_gate_up_row1_triton_enabled()
-        os.environ["NANOVLLM_FP8_GATE_UP_ROW1_TRITON"] = "raw_unsafe"
+        os.environ["FASTDMS_FP8_GATE_UP_ROW1_TRITON"] = "raw_unsafe"
         assert fp8_gate_up_row1_triton_mode() == "raw"
     finally:
         if old is None:
-            os.environ.pop("NANOVLLM_FP8_GATE_UP_ROW1_TRITON", None)
+            os.environ.pop("FASTDMS_FP8_GATE_UP_ROW1_TRITON", None)
         else:
-            os.environ["NANOVLLM_FP8_GATE_UP_ROW1_TRITON"] = old
+            os.environ["FASTDMS_FP8_GATE_UP_ROW1_TRITON"] = old
 
 
 def test_fp8_attention_row1_shadow_env():
-    old_full = os.environ.get("NANOVLLM_FP8_ATTENTION_FULL")
-    old_shadow = os.environ.get("NANOVLLM_FP8_ATTENTION_ROW1_SHADOW")
-    old_triton = os.environ.get("NANOVLLM_FP8_ATTENTION_ROW1_TRITON")
+    old_full = os.environ.get("FASTDMS_FP8_ATTENTION_FULL")
+    old_shadow = os.environ.get("FASTDMS_FP8_ATTENTION_ROW1_SHADOW")
+    old_triton = os.environ.get("FASTDMS_FP8_ATTENTION_ROW1_TRITON")
     try:
-        os.environ.pop("NANOVLLM_FP8_ATTENTION_FULL", None)
-        os.environ.pop("NANOVLLM_FP8_ATTENTION_ROW1_SHADOW", None)
-        os.environ.pop("NANOVLLM_FP8_ATTENTION_ROW1_TRITON", None)
+        os.environ.pop("FASTDMS_FP8_ATTENTION_FULL", None)
+        os.environ.pop("FASTDMS_FP8_ATTENTION_ROW1_SHADOW", None)
+        os.environ.pop("FASTDMS_FP8_ATTENTION_ROW1_TRITON", None)
         assert fp8_attention_full_enabled()
         assert fp8_attention_row1_shadow_enabled()
         assert fp8_attention_row1_triton_mode() == "quantized"
         assert fp8_attention_row1_triton_enabled()
 
-        os.environ["NANOVLLM_FP8_ATTENTION_ROW1_SHADOW"] = "0"
+        os.environ["FASTDMS_FP8_ATTENTION_ROW1_SHADOW"] = "0"
         assert not fp8_attention_row1_shadow_enabled()
         assert fp8_attention_row1_triton_mode() == "quantized"
         assert fp8_attention_row1_triton_enabled()
 
-        os.environ["NANOVLLM_FP8_ATTENTION_FULL"] = "0"
+        os.environ["FASTDMS_FP8_ATTENTION_FULL"] = "0"
         assert fp8_attention_row1_triton_mode() == "off"
         assert not fp8_attention_row1_triton_enabled()
 
-        os.environ["NANOVLLM_FP8_ATTENTION_ROW1_SHADOW"] = "1"
-        os.environ.pop("NANOVLLM_FP8_ATTENTION_ROW1_TRITON", None)
+        os.environ["FASTDMS_FP8_ATTENTION_ROW1_SHADOW"] = "1"
+        os.environ.pop("FASTDMS_FP8_ATTENTION_ROW1_TRITON", None)
 
-        os.environ["NANOVLLM_FP8_ATTENTION_ROW1_TRITON"] = "0"
+        os.environ["FASTDMS_FP8_ATTENTION_ROW1_TRITON"] = "0"
         assert fp8_attention_row1_triton_mode() == "off"
         assert not fp8_attention_row1_triton_enabled()
 
-        os.environ["NANOVLLM_FP8_ATTENTION_ROW1_TRITON"] = "raw_unsafe"
+        os.environ["FASTDMS_FP8_ATTENTION_ROW1_TRITON"] = "raw_unsafe"
         assert fp8_attention_row1_triton_mode() == "raw"
         assert fp8_attention_row1_triton_enabled()
     finally:
         for name, value in (
-            ("NANOVLLM_FP8_ATTENTION_FULL", old_full),
-            ("NANOVLLM_FP8_ATTENTION_ROW1_SHADOW", old_shadow),
-            ("NANOVLLM_FP8_ATTENTION_ROW1_TRITON", old_triton),
+            ("FASTDMS_FP8_ATTENTION_FULL", old_full),
+            ("FASTDMS_FP8_ATTENTION_ROW1_SHADOW", old_shadow),
+            ("FASTDMS_FP8_ATTENTION_ROW1_TRITON", old_triton),
         ):
             if value is None:
                 os.environ.pop(name, None)
@@ -800,29 +800,29 @@ def test_fp8_attention_row1_shadow_env():
 
 
 def test_fp8_mlp_bf16_backing_defaults_memory_pure():
-    old_global = os.environ.get("NANOVLLM_FP8_KEEP_BF16_WEIGHTS")
-    old_gate = os.environ.get("NANOVLLM_FP8_KEEP_BF16_GATE_UP")
-    old_down = os.environ.get("NANOVLLM_FP8_KEEP_BF16_DOWN")
+    old_global = os.environ.get("FASTDMS_FP8_KEEP_BF16_WEIGHTS")
+    old_gate = os.environ.get("FASTDMS_FP8_KEEP_BF16_GATE_UP")
+    old_down = os.environ.get("FASTDMS_FP8_KEEP_BF16_DOWN")
     try:
-        os.environ.pop("NANOVLLM_FP8_KEEP_BF16_WEIGHTS", None)
-        os.environ.pop("NANOVLLM_FP8_KEEP_BF16_GATE_UP", None)
-        os.environ.pop("NANOVLLM_FP8_KEEP_BF16_DOWN", None)
+        os.environ.pop("FASTDMS_FP8_KEEP_BF16_WEIGHTS", None)
+        os.environ.pop("FASTDMS_FP8_KEEP_BF16_GATE_UP", None)
+        os.environ.pop("FASTDMS_FP8_KEEP_BF16_DOWN", None)
         assert not fp8_keep_bf16_gate_up_weights()
         assert not fp8_keep_bf16_down_weights()
 
-        os.environ["NANOVLLM_FP8_KEEP_BF16_WEIGHTS"] = "1"
+        os.environ["FASTDMS_FP8_KEEP_BF16_WEIGHTS"] = "1"
         assert fp8_keep_bf16_gate_up_weights()
         assert fp8_keep_bf16_down_weights()
 
-        os.environ["NANOVLLM_FP8_KEEP_BF16_GATE_UP"] = "0"
-        os.environ["NANOVLLM_FP8_KEEP_BF16_DOWN"] = "0"
+        os.environ["FASTDMS_FP8_KEEP_BF16_GATE_UP"] = "0"
+        os.environ["FASTDMS_FP8_KEEP_BF16_DOWN"] = "0"
         assert not fp8_keep_bf16_gate_up_weights()
         assert not fp8_keep_bf16_down_weights()
     finally:
         for name, value in (
-            ("NANOVLLM_FP8_KEEP_BF16_WEIGHTS", old_global),
-            ("NANOVLLM_FP8_KEEP_BF16_GATE_UP", old_gate),
-            ("NANOVLLM_FP8_KEEP_BF16_DOWN", old_down),
+            ("FASTDMS_FP8_KEEP_BF16_WEIGHTS", old_global),
+            ("FASTDMS_FP8_KEEP_BF16_GATE_UP", old_gate),
+            ("FASTDMS_FP8_KEEP_BF16_DOWN", old_down),
         ):
             if value is None:
                 os.environ.pop(name, None)
@@ -831,39 +831,39 @@ def test_fp8_mlp_bf16_backing_defaults_memory_pure():
 
 
 def test_fp8_lm_head_row1_triton_env():
-    old = os.environ.get("NANOVLLM_FP8_LM_HEAD_ROW1_TRITON")
+    old = os.environ.get("FASTDMS_FP8_LM_HEAD_ROW1_TRITON")
     try:
-        os.environ["NANOVLLM_FP8_LM_HEAD_ROW1_TRITON"] = "1"
+        os.environ["FASTDMS_FP8_LM_HEAD_ROW1_TRITON"] = "1"
         assert fp8_lm_head_row1_triton_enabled()
         assert _fp8_lm_head_row1_triton_allowed(rows=1, min_rows=1, has_bf16_weight=True)
         assert not _fp8_lm_head_row1_triton_allowed(rows=1, min_rows=2, has_bf16_weight=True)
         assert _fp8_lm_head_row1_triton_allowed(rows=1, min_rows=2, has_bf16_weight=False)
-        os.environ["NANOVLLM_FP8_LM_HEAD_ROW1_TRITON"] = "0"
+        os.environ["FASTDMS_FP8_LM_HEAD_ROW1_TRITON"] = "0"
         assert not fp8_lm_head_row1_triton_enabled()
         assert not _fp8_lm_head_row1_triton_allowed(rows=1, min_rows=1, has_bf16_weight=False)
     finally:
         if old is None:
-            os.environ.pop("NANOVLLM_FP8_LM_HEAD_ROW1_TRITON", None)
+            os.environ.pop("FASTDMS_FP8_LM_HEAD_ROW1_TRITON", None)
         else:
-            os.environ["NANOVLLM_FP8_LM_HEAD_ROW1_TRITON"] = old
+            os.environ["FASTDMS_FP8_LM_HEAD_ROW1_TRITON"] = old
 
 
 def test_int4_lm_head_rerank_topk_env():
-    old = os.environ.get("NANOVLLM_INT4_ROW1_LM_HEAD_RERANK_TOPK")
+    old = os.environ.get("FASTDMS_INT4_ROW1_LM_HEAD_RERANK_TOPK")
     try:
-        os.environ.pop("NANOVLLM_INT4_ROW1_LM_HEAD_RERANK_TOPK", None)
+        os.environ.pop("FASTDMS_INT4_ROW1_LM_HEAD_RERANK_TOPK", None)
         assert int4_lm_head_rerank_topk() == 0
-        os.environ["NANOVLLM_INT4_ROW1_LM_HEAD_RERANK_TOPK"] = "off"
+        os.environ["FASTDMS_INT4_ROW1_LM_HEAD_RERANK_TOPK"] = "off"
         assert int4_lm_head_rerank_topk() == 0
-        os.environ["NANOVLLM_INT4_ROW1_LM_HEAD_RERANK_TOPK"] = "2"
+        os.environ["FASTDMS_INT4_ROW1_LM_HEAD_RERANK_TOPK"] = "2"
         assert int4_lm_head_rerank_topk() == 2
-        os.environ["NANOVLLM_INT4_ROW1_LM_HEAD_RERANK_TOPK"] = "16"
+        os.environ["FASTDMS_INT4_ROW1_LM_HEAD_RERANK_TOPK"] = "16"
         assert int4_lm_head_rerank_topk() == 16
     finally:
         if old is None:
-            os.environ.pop("NANOVLLM_INT4_ROW1_LM_HEAD_RERANK_TOPK", None)
+            os.environ.pop("FASTDMS_INT4_ROW1_LM_HEAD_RERANK_TOPK", None)
         else:
-            os.environ["NANOVLLM_INT4_ROW1_LM_HEAD_RERANK_TOPK"] = old
+            os.environ["FASTDMS_INT4_ROW1_LM_HEAD_RERANK_TOPK"] = old
 
 
 def test_fp8_lm_head_rerank_topk_matches_full_argmax():
@@ -896,28 +896,28 @@ def test_fp8_lm_head_rerank_topk_matches_full_argmax():
 
 
 def test_fp8_embedding_env_defaults_memory_pure():
-    old_enabled = os.environ.get("NANOVLLM_FP8_EMBEDDING")
-    old_keep = os.environ.get("NANOVLLM_FP8_KEEP_BF16_EMBEDDING")
-    old_share = os.environ.get("NANOVLLM_FP8_EMBEDDING_SHARE_LM_HEAD")
+    old_enabled = os.environ.get("FASTDMS_FP8_EMBEDDING")
+    old_keep = os.environ.get("FASTDMS_FP8_KEEP_BF16_EMBEDDING")
+    old_share = os.environ.get("FASTDMS_FP8_EMBEDDING_SHARE_LM_HEAD")
     try:
-        os.environ.pop("NANOVLLM_FP8_EMBEDDING", None)
-        os.environ.pop("NANOVLLM_FP8_KEEP_BF16_EMBEDDING", None)
-        os.environ.pop("NANOVLLM_FP8_EMBEDDING_SHARE_LM_HEAD", None)
+        os.environ.pop("FASTDMS_FP8_EMBEDDING", None)
+        os.environ.pop("FASTDMS_FP8_KEEP_BF16_EMBEDDING", None)
+        os.environ.pop("FASTDMS_FP8_EMBEDDING_SHARE_LM_HEAD", None)
         assert fp8_embedding_enabled()
         assert not fp8_keep_bf16_embedding_weight()
         assert not fp8_embedding_share_lm_head_weight()
-        os.environ["NANOVLLM_FP8_EMBEDDING"] = "0"
+        os.environ["FASTDMS_FP8_EMBEDDING"] = "0"
         assert not fp8_embedding_enabled()
-        os.environ["NANOVLLM_FP8_EMBEDDING"] = "1"
-        os.environ["NANOVLLM_FP8_KEEP_BF16_EMBEDDING"] = "1"
+        os.environ["FASTDMS_FP8_EMBEDDING"] = "1"
+        os.environ["FASTDMS_FP8_KEEP_BF16_EMBEDDING"] = "1"
         assert fp8_keep_bf16_embedding_weight()
-        os.environ["NANOVLLM_FP8_EMBEDDING_SHARE_LM_HEAD"] = "1"
+        os.environ["FASTDMS_FP8_EMBEDDING_SHARE_LM_HEAD"] = "1"
         assert fp8_embedding_share_lm_head_weight()
     finally:
         for name, value in (
-            ("NANOVLLM_FP8_EMBEDDING", old_enabled),
-            ("NANOVLLM_FP8_KEEP_BF16_EMBEDDING", old_keep),
-            ("NANOVLLM_FP8_EMBEDDING_SHARE_LM_HEAD", old_share),
+            ("FASTDMS_FP8_EMBEDDING", old_enabled),
+            ("FASTDMS_FP8_KEEP_BF16_EMBEDDING", old_keep),
+            ("FASTDMS_FP8_EMBEDDING_SHARE_LM_HEAD", old_share),
         ):
             if value is None:
                 os.environ.pop(name, None)
@@ -1285,10 +1285,10 @@ def test_dms_expiry_triton_matches_python_for_non_power_of_two_capacity():
             py_manager, py_seqs = _build_cuda_expiry_case(dtype, layer_major_metadata)
             triton_manager, triton_seqs = _build_cuda_expiry_case(dtype, layer_major_metadata)
 
-            old_env = os.environ.get("NANOVLLM_DMS_EXPIRY_TRITON")
-            old_interval = os.environ.get("NANOVLLM_DMS_EXPIRY_INTERVAL")
+            old_env = os.environ.get("FASTDMS_DMS_EXPIRY_TRITON")
+            old_interval = os.environ.get("FASTDMS_DMS_EXPIRY_INTERVAL")
             try:
-                os.environ["NANOVLLM_DMS_EXPIRY_TRITON"] = "0"
+                os.environ["FASTDMS_DMS_EXPIRY_TRITON"] = "0"
                 py_stats = py_manager.apply_dms_evictions(py_seqs, [8], window_size=3)
                 triton_stats = triton_manager._apply_dms_evictions_triton(triton_seqs, [8], window_size=3)
                 torch.cuda.synchronize()
@@ -1297,27 +1297,27 @@ def test_dms_expiry_triton_matches_python_for_non_power_of_two_capacity():
 
                 _append_cuda_expiry_token(py_manager, 8, dtype)
                 _append_cuda_expiry_token(triton_manager, 8, dtype)
-                os.environ["NANOVLLM_DMS_EXPIRY_TRITON"] = "0"
+                os.environ["FASTDMS_DMS_EXPIRY_TRITON"] = "0"
                 py_manager.apply_dms_evictions(py_seqs, [9], window_size=3)
-                os.environ["NANOVLLM_DMS_EXPIRY_TRITON"] = "1"
-                os.environ["NANOVLLM_DMS_EXPIRY_INTERVAL"] = "1"
+                os.environ["FASTDMS_DMS_EXPIRY_TRITON"] = "1"
+                os.environ["FASTDMS_DMS_EXPIRY_INTERVAL"] = "1"
                 triton_manager.apply_dms_evictions(triton_seqs, [9], window_size=3)
                 _append_cuda_expiry_token(py_manager, 9, dtype)
                 _append_cuda_expiry_token(triton_manager, 9, dtype)
-                os.environ["NANOVLLM_DMS_EXPIRY_TRITON"] = "0"
+                os.environ["FASTDMS_DMS_EXPIRY_TRITON"] = "0"
                 py_manager.apply_dms_evictions(py_seqs, [10], window_size=3)
-                os.environ["NANOVLLM_DMS_EXPIRY_TRITON"] = "1"
-                os.environ["NANOVLLM_DMS_EXPIRY_INTERVAL"] = "1"
+                os.environ["FASTDMS_DMS_EXPIRY_TRITON"] = "1"
+                os.environ["FASTDMS_DMS_EXPIRY_INTERVAL"] = "1"
                 triton_manager.apply_dms_evictions(triton_seqs, [10], window_size=3)
             finally:
                 if old_env is None:
-                    os.environ.pop("NANOVLLM_DMS_EXPIRY_TRITON", None)
+                    os.environ.pop("FASTDMS_DMS_EXPIRY_TRITON", None)
                 else:
-                    os.environ["NANOVLLM_DMS_EXPIRY_TRITON"] = old_env
+                    os.environ["FASTDMS_DMS_EXPIRY_TRITON"] = old_env
                 if old_interval is None:
-                    os.environ.pop("NANOVLLM_DMS_EXPIRY_INTERVAL", None)
+                    os.environ.pop("FASTDMS_DMS_EXPIRY_INTERVAL", None)
                 else:
-                    os.environ["NANOVLLM_DMS_EXPIRY_INTERVAL"] = old_interval
+                    os.environ["FASTDMS_DMS_EXPIRY_INTERVAL"] = old_interval
 
             torch.cuda.synchronize()
             _assert_cuda_expiry_managers_equal(py_manager, triton_manager)

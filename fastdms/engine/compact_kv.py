@@ -9,7 +9,7 @@ from fastdms.engine.sequence import Sequence
 
 
 def streaming_pack_cache_live_enabled() -> bool:
-    return os.environ.get("NANOVLLM_STREAMING_PACK_CACHE_LIVE", "1").strip().lower() in {
+    return os.environ.get("FASTDMS_STREAMING_PACK_CACHE_LIVE", "1").strip().lower() in {
         "1",
         "true",
         "yes",
@@ -18,7 +18,7 @@ def streaming_pack_cache_live_enabled() -> bool:
 
 
 def streaming_pack_triton_enabled() -> bool:
-    return os.environ.get("NANOVLLM_STREAMING_PACK_TRITON", "1").strip().lower() in {
+    return os.environ.get("FASTDMS_STREAMING_PACK_TRITON", "1").strip().lower() in {
         "1",
         "true",
         "yes",
@@ -27,7 +27,7 @@ def streaming_pack_triton_enabled() -> bool:
 
 
 def streaming_pack_fused_rank_triton_enabled() -> bool:
-    return os.environ.get("NANOVLLM_STREAMING_PACK_FUSED_RANK_TRITON", "1").strip().lower() in {
+    return os.environ.get("FASTDMS_STREAMING_PACK_FUSED_RANK_TRITON", "1").strip().lower() in {
         "1",
         "true",
         "yes",
@@ -641,7 +641,7 @@ class CompactKVManager:
         ]
         self.seq_states: dict[int, CompactKVSequenceState] = {}
         self.admission_denied_count = 0
-        self.debug_checks = os.environ.get("NANOVLLM_COMPACT_DEBUG_CHECKS") == "1"
+        self.debug_checks = os.environ.get("FASTDMS_COMPACT_DEBUG_CHECKS") == "1"
         # J1 streaming pack: manager owns compact storage tensors directly so
         # the streaming pack and apply_dms_evictions don't need them passed.
         self.compact_k: torch.Tensor | None = None
@@ -1184,9 +1184,9 @@ class CompactKVManager:
         # J2 Triton expiry path for per-layer storage. The default auto mode
         # uses it for c=1 and batched decode, where window-cadence expiry
         # removes substantially more work than the launch overhead adds; set
-        # NANOVLLM_DMS_EXPIRY_TRITON=1 to force it or 0 to disable it.
+        # FASTDMS_DMS_EXPIRY_TRITON=1 to force it or 0 to disable it.
         import os
-        triton_mode = os.environ.get("NANOVLLM_DMS_EXPIRY_TRITON", "auto").strip().lower()
+        triton_mode = os.environ.get("FASTDMS_DMS_EXPIRY_TRITON", "auto").strip().lower()
         use_triton = (
             self.per_layer_storage
             and len(seqs) > 0
@@ -1211,7 +1211,7 @@ class CompactKVManager:
                 # safely ignore until the DMS retention window is crossed. Use
                 # one full expiry per DMS window by default; keep forced Triton
                 # exact unless the interval env override is explicitly set.
-                interval_env = os.environ.get("NANOVLLM_DMS_EXPIRY_INTERVAL")
+                interval_env = os.environ.get("FASTDMS_DMS_EXPIRY_INTERVAL")
                 auto_windowed = triton_mode in {"", "auto"} and (len(seqs) == 1 or len(seqs) >= 4)
                 expiry_interval = int(interval_env) if interval_env is not None else (
                     max(1, int(window_size)) if auto_windowed else 1

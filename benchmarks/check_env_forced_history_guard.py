@@ -65,7 +65,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--clear-nanovllm-env",
         action="store_true",
-        help="Clear inherited NANOVLLM_* variables before applying each env surface.",
+        help="Clear inherited FASTDMS_* variables before applying each env surface.",
     )
     parser.add_argument("--output", type=Path)
     return parser.parse_args()
@@ -77,7 +77,7 @@ def temporary_env(updates: dict[str, str], *, clear_nanovllm_env: bool):
     try:
         if clear_nanovllm_env:
             for key in list(os.environ):
-                if key.startswith("NANOVLLM_"):
+                if key.startswith("FASTDMS_"):
                     os.environ.pop(key, None)
         os.environ.update(updates)
         yield

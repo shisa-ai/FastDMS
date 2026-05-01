@@ -9,7 +9,7 @@ from fastdms.layers.compact_attention import compact_decode_attention, store_com
 from fastdms.utils.context import get_context
 from fastdms.utils.profiler import get_profiler
 
-# Resolved at import time; raises if NANOVLLM_ATTENTION_BACKEND is set to an
+# Resolved at import time; raises if FASTDMS_ATTENTION_BACKEND is set to an
 # unimplemented value.
 _BACKEND = get_backend_name()
 

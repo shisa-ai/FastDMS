@@ -26,62 +26,62 @@ from fastdms.utils.profiler import get_profiler
 
 
 def fp8_lm_head_enabled() -> bool:
-    explicit = os.environ.get("NANOVLLM_FP8_LM_HEAD")
+    explicit = os.environ.get("FASTDMS_FP8_LM_HEAD")
     if explicit is not None:
         return explicit.strip().lower() in {"1", "true", "yes", "on"}
     return fp8_weight_scope() in {"lm_head", "head", "mlp_lm_head", "mlp+lm_head", "mlp_head", "mlp+head"}
 
 
 def fp8_lm_head_min_rows() -> int:
-    raw = os.environ.get("NANOVLLM_FP8_LM_HEAD_MIN_ROWS")
+    raw = os.environ.get("FASTDMS_FP8_LM_HEAD_MIN_ROWS")
     if raw is None or raw.strip() == "":
         return fp8_min_rows()
     return max(1, int(raw))
 
 
 def fp8_keep_bf16_lm_head_weight() -> bool:
-    return _env_bool("NANOVLLM_FP8_KEEP_BF16_LM_HEAD", fp8_keep_bf16_weights())
+    return _env_bool("FASTDMS_FP8_KEEP_BF16_LM_HEAD", fp8_keep_bf16_weights())
 
 
 def fp8_embedding_enabled() -> bool:
-    return _env_bool("NANOVLLM_FP8_EMBEDDING", True)
+    return _env_bool("FASTDMS_FP8_EMBEDDING", True)
 
 
 def fp8_keep_bf16_embedding_weight() -> bool:
-    return _env_bool("NANOVLLM_FP8_KEEP_BF16_EMBEDDING", False)
+    return _env_bool("FASTDMS_FP8_KEEP_BF16_EMBEDDING", False)
 
 
 def fp8_embedding_share_lm_head_weight() -> bool:
-    return _env_bool("NANOVLLM_FP8_EMBEDDING_SHARE_LM_HEAD", False)
+    return _env_bool("FASTDMS_FP8_EMBEDDING_SHARE_LM_HEAD", False)
 
 
 def fp8_lm_head_row1_triton_enabled() -> bool:
-    return _env_bool("NANOVLLM_FP8_LM_HEAD_ROW1_TRITON", True)
+    return _env_bool("FASTDMS_FP8_LM_HEAD_ROW1_TRITON", True)
 
 
 def greedy_fused_argmax_enabled() -> bool:
-    return _env_bool("NANOVLLM_GREEDY_FUSED_ARGMAX", True)
+    return _env_bool("FASTDMS_GREEDY_FUSED_ARGMAX", True)
 
 
 def fp8_lm_head_argmax_block_n() -> int:
-    raw = os.environ.get("NANOVLLM_FP8_LM_HEAD_ARGMAX_BLOCK_N")
+    raw = os.environ.get("FASTDMS_FP8_LM_HEAD_ARGMAX_BLOCK_N")
     if raw is None or raw.strip() == "":
         return 128
     value = int(raw)
     if value not in {16, 32, 64, 128}:
-        raise ValueError("NANOVLLM_FP8_LM_HEAD_ARGMAX_BLOCK_N must be one of 16, 32, 64, 128")
+        raise ValueError("FASTDMS_FP8_LM_HEAD_ARGMAX_BLOCK_N must be one of 16, 32, 64, 128")
     return value
 
 
 def int4_lm_head_rerank_topk() -> int:
-    raw = os.environ.get("NANOVLLM_INT4_ROW1_LM_HEAD_RERANK_TOPK")
+    raw = os.environ.get("FASTDMS_INT4_ROW1_LM_HEAD_RERANK_TOPK")
     if raw is None or raw.strip() == "":
         return 0
     if raw.strip().lower() in {"0", "false", "no", "off"}:
         return 0
     value = int(raw)
     if value not in {2, 4, 8, 16, 32}:
-        raise ValueError("NANOVLLM_INT4_ROW1_LM_HEAD_RERANK_TOPK must be one of 0, 2, 4, 8, 16, 32")
+        raise ValueError("FASTDMS_INT4_ROW1_LM_HEAD_RERANK_TOPK must be one of 0, 2, 4, 8, 16, 32")
     return value
 
 

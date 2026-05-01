@@ -21,14 +21,14 @@ from __future__ import annotations
 import os
 
 
-_PRODUCTION_BACKEND = os.environ.get("NANOVLLM_ATTENTION_BACKEND", "flash_attn")
+_PRODUCTION_BACKEND = os.environ.get("FASTDMS_ATTENTION_BACKEND", "flash_attn")
 _AVAILABLE_BACKENDS = ("flash_attn",)  # flashinfer + fa3 deferred per H1 plan
 
 
 def get_backend_name() -> str:
     if _PRODUCTION_BACKEND not in _AVAILABLE_BACKENDS:
         raise RuntimeError(
-            f"NANOVLLM_ATTENTION_BACKEND={_PRODUCTION_BACKEND!r} is not implemented. "
+            f"FASTDMS_ATTENTION_BACKEND={_PRODUCTION_BACKEND!r} is not implemented. "
             f"Available: {_AVAILABLE_BACKENDS}. FlashInfer + FA3 ports are deferred per "
             "PLAN15 H1 (storage layout change required)."
         )

@@ -15,7 +15,7 @@ _FP8_MAX = float(torch.finfo(torch.float8_e4m3fn).max)
 
 
 def fp8_weights_enabled() -> bool:
-    return os.environ.get("NANOVLLM_FP8_WEIGHTS", "0").strip().lower() in {
+    return os.environ.get("FASTDMS_FP8_WEIGHTS", "0").strip().lower() in {
         "1",
         "true",
         "yes",
@@ -24,11 +24,11 @@ def fp8_weights_enabled() -> bool:
 
 
 def fp8_weight_scope() -> str:
-    return os.environ.get("NANOVLLM_FP8_WEIGHT_SCOPE", "mlp").strip().lower()
+    return os.environ.get("FASTDMS_FP8_WEIGHT_SCOPE", "mlp").strip().lower()
 
 
 def fp8_keep_bf16_weights() -> bool:
-    return os.environ.get("NANOVLLM_FP8_KEEP_BF16_WEIGHTS", "1").strip().lower() in {
+    return os.environ.get("FASTDMS_FP8_KEEP_BF16_WEIGHTS", "1").strip().lower() in {
         "1",
         "true",
         "yes",
@@ -44,7 +44,7 @@ def _env_bool(name: str, default: bool) -> bool:
 
 
 def _global_keep_bf16_explicit() -> bool:
-    raw = os.environ.get("NANOVLLM_FP8_KEEP_BF16_WEIGHTS")
+    raw = os.environ.get("FASTDMS_FP8_KEEP_BF16_WEIGHTS")
     return raw is not None and raw.strip() != ""
 
 
@@ -53,7 +53,7 @@ def fp8_keep_bf16_gate_up_weights() -> bool:
         default = fp8_keep_bf16_weights()
     else:
         default = False
-    return _env_bool("NANOVLLM_FP8_KEEP_BF16_GATE_UP", default)
+    return _env_bool("FASTDMS_FP8_KEEP_BF16_GATE_UP", default)
 
 
 def fp8_keep_bf16_down_weights() -> bool:
@@ -61,7 +61,7 @@ def fp8_keep_bf16_down_weights() -> bool:
         default = fp8_keep_bf16_weights()
     else:
         default = False
-    return _env_bool("NANOVLLM_FP8_KEEP_BF16_DOWN", default)
+    return _env_bool("FASTDMS_FP8_KEEP_BF16_DOWN", default)
 
 
 def fp8_keep_bf16_attention_weights() -> bool:
@@ -69,11 +69,11 @@ def fp8_keep_bf16_attention_weights() -> bool:
         default = fp8_keep_bf16_weights()
     else:
         default = False
-    return _env_bool("NANOVLLM_FP8_KEEP_BF16_ATTENTION", default)
+    return _env_bool("FASTDMS_FP8_KEEP_BF16_ATTENTION", default)
 
 
 def fp8_min_rows() -> int:
-    return max(1, int(os.environ.get("NANOVLLM_FP8_MIN_ROWS", "2")))
+    return max(1, int(os.environ.get("FASTDMS_FP8_MIN_ROWS", "2")))
 
 
 def _fp8_min_rows_env(name: str, default: int) -> int:
@@ -84,22 +84,22 @@ def _fp8_min_rows_env(name: str, default: int) -> int:
 
 
 def fp8_gate_up_min_rows() -> int:
-    return _fp8_min_rows_env("NANOVLLM_FP8_GATE_UP_MIN_ROWS", fp8_min_rows())
+    return _fp8_min_rows_env("FASTDMS_FP8_GATE_UP_MIN_ROWS", fp8_min_rows())
 
 
 def fp8_down_min_rows() -> int:
-    return _fp8_min_rows_env("NANOVLLM_FP8_DOWN_MIN_ROWS", fp8_min_rows())
+    return _fp8_min_rows_env("FASTDMS_FP8_DOWN_MIN_ROWS", fp8_min_rows())
 
 
 def fp8_down_row1_triton_mode() -> str:
-    raw = os.environ.get("NANOVLLM_FP8_DOWN_ROW1_TRITON", "quantized").strip().lower()
+    raw = os.environ.get("FASTDMS_FP8_DOWN_ROW1_TRITON", "quantized").strip().lower()
     if raw in {"", "0", "false", "no", "off"}:
         return "off"
     if raw in {"1", "true", "yes", "on", "quant", "quantized", "fp8"}:
         return "quantized"
     if raw == "raw_unsafe":
         return "raw"
-    raise ValueError("NANOVLLM_FP8_DOWN_ROW1_TRITON must be off, quantized, or raw_unsafe")
+    raise ValueError("FASTDMS_FP8_DOWN_ROW1_TRITON must be off, quantized, or raw_unsafe")
 
 
 def fp8_down_row1_triton_enabled() -> bool:
@@ -107,14 +107,14 @@ def fp8_down_row1_triton_enabled() -> bool:
 
 
 def fp8_gate_up_row1_triton_mode() -> str:
-    raw = os.environ.get("NANOVLLM_FP8_GATE_UP_ROW1_TRITON", "quantized").strip().lower()
+    raw = os.environ.get("FASTDMS_FP8_GATE_UP_ROW1_TRITON", "quantized").strip().lower()
     if raw in {"", "0", "false", "no", "off"}:
         return "off"
     if raw in {"1", "true", "yes", "on", "quant", "quantized", "fp8"}:
         return "quantized"
     if raw == "raw_unsafe":
         return "raw"
-    raise ValueError("NANOVLLM_FP8_GATE_UP_ROW1_TRITON must be off, quantized, or raw_unsafe")
+    raise ValueError("FASTDMS_FP8_GATE_UP_ROW1_TRITON must be off, quantized, or raw_unsafe")
 
 
 def fp8_gate_up_row1_triton_enabled() -> bool:
@@ -122,23 +122,23 @@ def fp8_gate_up_row1_triton_enabled() -> bool:
 
 
 def fp8_attention_row1_shadow_enabled() -> bool:
-    return _env_bool("NANOVLLM_FP8_ATTENTION_ROW1_SHADOW", True)
+    return _env_bool("FASTDMS_FP8_ATTENTION_ROW1_SHADOW", True)
 
 
 def fp8_attention_full_enabled() -> bool:
-    return _env_bool("NANOVLLM_FP8_ATTENTION_FULL", True)
+    return _env_bool("FASTDMS_FP8_ATTENTION_FULL", True)
 
 
 def fp8_attention_row1_triton_mode() -> str:
     default = "quantized" if (fp8_attention_row1_shadow_enabled() or fp8_attention_full_enabled()) else "0"
-    raw = os.environ.get("NANOVLLM_FP8_ATTENTION_ROW1_TRITON", default).strip().lower()
+    raw = os.environ.get("FASTDMS_FP8_ATTENTION_ROW1_TRITON", default).strip().lower()
     if raw in {"", "0", "false", "no", "off"}:
         return "off"
     if raw in {"1", "true", "yes", "on", "quant", "quantized", "fp8"}:
         return "quantized"
     if raw == "raw_unsafe":
         return "raw"
-    raise ValueError("NANOVLLM_FP8_ATTENTION_ROW1_TRITON must be off, quantized, or raw_unsafe")
+    raise ValueError("FASTDMS_FP8_ATTENTION_ROW1_TRITON must be off, quantized, or raw_unsafe")
 
 
 def fp8_attention_row1_triton_enabled() -> bool:
@@ -146,14 +146,14 @@ def fp8_attention_row1_triton_enabled() -> bool:
 
 
 def fp8_row1_triton_mode() -> str:
-    raw = os.environ.get("NANOVLLM_FP8_ROW1_TRITON", "0").strip().lower()
+    raw = os.environ.get("FASTDMS_FP8_ROW1_TRITON", "0").strip().lower()
     if raw in {"", "0", "false", "no", "off"}:
         return "off"
     if raw in {"1", "true", "yes", "on", "quant", "quantized", "fp8"}:
         return "quantized"
     if raw == "raw_unsafe":
         return "raw"
-    raise ValueError("NANOVLLM_FP8_ROW1_TRITON must be off, quantized, or raw_unsafe")
+    raise ValueError("FASTDMS_FP8_ROW1_TRITON must be off, quantized, or raw_unsafe")
 
 
 def fp8_row1_triton_enabled() -> bool:
@@ -161,12 +161,12 @@ def fp8_row1_triton_enabled() -> bool:
 
 
 def fp8_row1_matvec_impl() -> str:
-    raw = os.environ.get("NANOVLLM_FP8_ROW1_MATVEC_IMPL", "dot").strip().lower()
+    raw = os.environ.get("FASTDMS_FP8_ROW1_MATVEC_IMPL", "dot").strip().lower()
     if raw in {"", "scalar", "serial"}:
         return "scalar"
     if raw in {"dot", "tc", "tensorcore", "tensor_core"}:
         return "dot"
-    raise ValueError("NANOVLLM_FP8_ROW1_MATVEC_IMPL must be scalar or dot")
+    raise ValueError("FASTDMS_FP8_ROW1_MATVEC_IMPL must be scalar or dot")
 
 
 def _fp8_row1_matvec_env_int(name: str, default: int, allowed: set[int]) -> int:
@@ -181,31 +181,31 @@ def _fp8_row1_matvec_env_int(name: str, default: int, allowed: set[int]) -> int:
 
 
 def fp8_row1_matvec_dot_block_k() -> int:
-    return _fp8_row1_matvec_env_int("NANOVLLM_FP8_ROW1_MATVEC_DOT_BLOCK_K", 256, {64, 128, 256})
+    return _fp8_row1_matvec_env_int("FASTDMS_FP8_ROW1_MATVEC_DOT_BLOCK_K", 256, {64, 128, 256})
 
 
 def fp8_row1_matvec_dot_block_n() -> int:
-    return _fp8_row1_matvec_env_int("NANOVLLM_FP8_ROW1_MATVEC_DOT_BLOCK_N", 32, {16, 32, 64, 128})
+    return _fp8_row1_matvec_env_int("FASTDMS_FP8_ROW1_MATVEC_DOT_BLOCK_N", 32, {16, 32, 64, 128})
 
 
 def fp8_small_m_triton_enabled() -> bool:
-    return _env_bool("NANOVLLM_FP8_SMALL_M_TRITON", True)
+    return _env_bool("FASTDMS_FP8_SMALL_M_TRITON", True)
 
 
 def fp8_small_m_triton_max_rows() -> int:
-    return _fp8_row1_matvec_env_int("NANOVLLM_FP8_SMALL_M_TRITON_MAX_ROWS", 8, {2, 4, 8, 16})
+    return _fp8_row1_matvec_env_int("FASTDMS_FP8_SMALL_M_TRITON_MAX_ROWS", 8, {2, 4, 8, 16})
 
 
 def fp8_small_m_triton_block_n() -> int:
-    return _fp8_row1_matvec_env_int("NANOVLLM_FP8_SMALL_M_TRITON_BLOCK_N", 32, {16, 32, 64, 128})
+    return _fp8_row1_matvec_env_int("FASTDMS_FP8_SMALL_M_TRITON_BLOCK_N", 32, {16, 32, 64, 128})
 
 
 def int4_row1_weights_enabled() -> bool:
-    return _env_bool("NANOVLLM_INT4_ROW1_WEIGHTS", False)
+    return _env_bool("FASTDMS_INT4_ROW1_WEIGHTS", False)
 
 
 def int4_row1_scope() -> str:
-    return os.environ.get("NANOVLLM_INT4_ROW1_SCOPE", "all").strip().lower()
+    return os.environ.get("FASTDMS_INT4_ROW1_SCOPE", "all").strip().lower()
 
 
 def _int4_row1_scope_parts() -> list[str]:
@@ -262,7 +262,7 @@ def _split_int4_row1_scope_filter(scope: str) -> tuple[str, str | None]:
     base, layer_filter = scope.split("@", 1)
     if not base or not layer_filter:
         raise ValueError(
-            "NANOVLLM_INT4_ROW1_SCOPE layer filters must use scope@layers, "
+            "FASTDMS_INT4_ROW1_SCOPE layer filters must use scope@layers, "
             f"got {scope!r}"
         )
     return base, layer_filter
@@ -294,7 +294,7 @@ def _int4_row1_module_in_single_scope(scope: str, module_name: str | None) -> bo
     if scope in {"none", "off", "0", "false"}:
         return False
     raise ValueError(
-        "NANOVLLM_INT4_ROW1_SCOPE must be one or more of all, transformer, mlp, attention, "
+        "FASTDMS_INT4_ROW1_SCOPE must be one or more of all, transformer, mlp, attention, "
         "qkv, attn_out, mlp_gate_up, mlp_down, lm_head, mlp_lm_head, none; "
         f"got {scope!r}"
     )
@@ -333,7 +333,7 @@ def int4_row1_lm_head_enabled() -> bool:
         }:
             continue
         raise ValueError(
-            "NANOVLLM_INT4_ROW1_SCOPE must be one or more of all, transformer, mlp, attention, "
+            "FASTDMS_INT4_ROW1_SCOPE must be one or more of all, transformer, mlp, attention, "
             "qkv, attn_out, mlp_gate_up, mlp_down, lm_head, mlp_lm_head, none; "
             f"got {scope!r}"
         )
@@ -341,24 +341,24 @@ def int4_row1_lm_head_enabled() -> bool:
 
 
 def int4_row1_group_size() -> int:
-    return _fp8_row1_matvec_env_int("NANOVLLM_INT4_ROW1_GROUP_SIZE", 256, {32, 64, 128, 256})
+    return _fp8_row1_matvec_env_int("FASTDMS_INT4_ROW1_GROUP_SIZE", 256, {32, 64, 128, 256})
 
 
 def int4_row1_quant_mode() -> str:
-    raw = os.environ.get("NANOVLLM_INT4_ROW1_QUANT_MODE", "symmetric").strip().lower()
+    raw = os.environ.get("FASTDMS_INT4_ROW1_QUANT_MODE", "symmetric").strip().lower()
     if raw in {"", "sym", "symmetric"}:
         return "symmetric"
     if raw in {"asym", "asymmetric", "affine"}:
         return "asymmetric"
-    raise ValueError("NANOVLLM_INT4_ROW1_QUANT_MODE must be symmetric or asymmetric")
+    raise ValueError("FASTDMS_INT4_ROW1_QUANT_MODE must be symmetric or asymmetric")
 
 
 def int4_row1_inner_k_tiles() -> int:
-    return _fp8_row1_matvec_env_int("NANOVLLM_INT4_ROW1_INNER_K_TILES", 2, {2, 4, 8})
+    return _fp8_row1_matvec_env_int("FASTDMS_INT4_ROW1_INNER_K_TILES", 2, {2, 4, 8})
 
 
 def int4_row1_max_rows() -> int:
-    return _fp8_row1_matvec_env_int("NANOVLLM_INT4_ROW1_MAX_ROWS", 1, {1, 2, 4, 8, 16})
+    return _fp8_row1_matvec_env_int("FASTDMS_INT4_ROW1_MAX_ROWS", 1, {1, 2, 4, 8, 16})
 
 
 def fp8_module_min_rows(module_name: str | None = None) -> int:
@@ -479,7 +479,7 @@ def _int4_row1_matvec(
 
 
 def _can_use_scaled_mm(x: torch.Tensor) -> bool:
-    if os.environ.get("NANOVLLM_FP8_LINEAR_IMPL", "").strip().lower() == "dequant":
+    if os.environ.get("FASTDMS_FP8_LINEAR_IMPL", "").strip().lower() == "dequant":
         return False
     return (
         x.is_cuda
@@ -1068,7 +1068,7 @@ def _fp8_module_in_scope(name: str, scope: str) -> bool:
     if scope in {"mlp_down", "down"}:
         return name.endswith(".down_proj")
     raise ValueError(
-        "NANOVLLM_FP8_WEIGHT_SCOPE must be one of all, mlp, attention, "
+        "FASTDMS_FP8_WEIGHT_SCOPE must be one of all, mlp, attention, "
         f"qkv, attn_out, mlp_gate_up, mlp_down, lm_head, mlp_lm_head; got {scope!r}"
     )
 

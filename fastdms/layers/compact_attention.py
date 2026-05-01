@@ -4,15 +4,15 @@ import torch
 import triton
 import triton.language as tl
 
-_COMPACT_DEBUG_CHECKS = os.environ.get("NANOVLLM_COMPACT_DEBUG_CHECKS") == "1"
-_COMPACT_ATTN_SPLITK = os.environ.get("NANOVLLM_COMPACT_ATTN_SPLITK", "auto").strip().lower() not in {
+_COMPACT_DEBUG_CHECKS = os.environ.get("FASTDMS_COMPACT_DEBUG_CHECKS") == "1"
+_COMPACT_ATTN_SPLITK = os.environ.get("FASTDMS_COMPACT_ATTN_SPLITK", "auto").strip().lower() not in {
     "0",
     "false",
     "no",
     "off",
 }
 _COMPACT_ATTN_SPLITK_DEFAULT_BLOCK_N = 256
-_COMPACT_ATTN_SPLITK_BLOCK_N_ENV = os.environ.get("NANOVLLM_COMPACT_ATTN_SPLITK_BLOCK_N")
+_COMPACT_ATTN_SPLITK_BLOCK_N_ENV = os.environ.get("FASTDMS_COMPACT_ATTN_SPLITK_BLOCK_N")
 
 
 def _parse_block_n_override(raw: str | None) -> int | None:
@@ -21,10 +21,10 @@ def _parse_block_n_override(raw: str | None) -> int | None:
     try:
         value = int(raw)
     except ValueError as exc:
-        raise ValueError(f"NANOVLLM_COMPACT_ATTN_SPLITK_BLOCK_N must be an integer, got {raw!r}") from exc
+        raise ValueError(f"FASTDMS_COMPACT_ATTN_SPLITK_BLOCK_N must be an integer, got {raw!r}") from exc
     if value not in {16, 32, 64, 128, 256, 512}:
         raise ValueError(
-            "NANOVLLM_COMPACT_ATTN_SPLITK_BLOCK_N must be one of "
+            "FASTDMS_COMPACT_ATTN_SPLITK_BLOCK_N must be one of "
             f"16, 32, 64, 128, 256, 512; got {value}"
         )
     return value
@@ -32,10 +32,10 @@ def _parse_block_n_override(raw: str | None) -> int | None:
 
 _COMPACT_ATTN_SPLITK_BLOCK_N = _parse_block_n_override(_COMPACT_ATTN_SPLITK_BLOCK_N_ENV)
 _DMS_FUSED_DECODE_PREPROCESS = os.environ.get(
-    "NANOVLLM_DMS_FUSED_DECODE_PREPROCESS", "1"
+    "FASTDMS_DMS_FUSED_DECODE_PREPROCESS", "1"
 ).strip().lower() not in {"0", "false", "no", "off"}
 _COMPACT_ATTN_INLINE_Q_ROPE = os.environ.get(
-    "NANOVLLM_COMPACT_ATTN_INLINE_Q_ROPE", "1"
+    "FASTDMS_COMPACT_ATTN_INLINE_Q_ROPE", "1"
 ).strip().lower() in {"1", "true", "yes", "on"}
 
 
@@ -52,7 +52,7 @@ def dms_fused_decode_preprocess_enabled() -> bool:
 
 
 def dms_decode_store_transient_k_enabled() -> bool:
-    return os.environ.get("NANOVLLM_DMS_DECODE_STORE_TRANSIENT_K", "0").strip().lower() in {
+    return os.environ.get("FASTDMS_DMS_DECODE_STORE_TRANSIENT_K", "0").strip().lower() in {
         "1",
         "true",
         "yes",
