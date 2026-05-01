@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fastdms"
+version = "0.2.0"
+authors = [{ name = "Leonard Lin" }]
+license = "MIT"
+license-files = ["LICENSE"]
+readme = "README.md"
+description = "Production-speed compact Dynamic Memory Sparsification (DMS) for KV cache compression"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "torch>=2.4.0",
+    "triton>=3.0.0",
+    "transformers>=4.51.0",
+    "flash-attn",
+    "xxhash",
+]
+
+[project.urls]
+Homepage = "https://github.com/shisa-ai/FastDMS"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["fastdms*"]
