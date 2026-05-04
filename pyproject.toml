@@ -10,7 +10,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 readme = "README.md"
 description = "Production-speed compact Dynamic Memory Sparsification (DMS) for KV cache compression"
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10"
 dependencies = [
     "torch>=2.4.0",
     "triton>=3.0.0",
@@ -18,9 +18,23 @@ dependencies = [
     "flash-attn",
     "xxhash",
 ]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 
 [project.urls]
 Homepage = "https://github.com/shisa-ai/FastDMS"
+Repository = "https://github.com/shisa-ai/FastDMS"
+Issues = "https://github.com/shisa-ai/FastDMS/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
