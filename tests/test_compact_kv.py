@@ -1,5 +1,6 @@
 import os
 
+import pytest
 import torch
 
 from fastdms.engine.compact_kv import (
@@ -511,14 +512,19 @@ def test_fp8_row1_matvec_matches_dequantized_linear():
         weight_scale_inv=weight_scale_inv,
         quantize_x=True,
     )
-    quantized_expected = torch._scaled_mm(
-        x_fp8,
-        weight_fp8_t,
-        scale_a=x_scale.reciprocal().reshape(-1, 1).contiguous(),
-        scale_b=weight_scale_inv,
-        out_dtype=x.dtype,
-        use_fast_accum=False,
-    )
+    try:
+        quantized_expected = torch._scaled_mm(
+            x_fp8,
+            weight_fp8_t,
+            scale_a=x_scale.reciprocal().reshape(-1, 1).contiguous(),
+            scale_b=weight_scale_inv,
+            out_dtype=x.dtype,
+            use_fast_accum=False,
+        )
+    except RuntimeError as exc:
+        if "CUBLAS_STATUS_NOT_SUPPORTED" in str(exc):
+            pytest.skip(f"torch._scaled_mm is not supported in this CUDA/cuBLAS configuration: {exc}")
+        raise
     torch.cuda.synchronize()
     torch.testing.assert_close(quantized_actual.float(), quantized_expected.float(), atol=0.25, rtol=0.02)
 

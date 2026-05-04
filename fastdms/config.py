@@ -1,6 +1,8 @@
 import os
 from dataclasses import dataclass
+
 import torch
+from huggingface_hub import snapshot_download
 from transformers import AutoConfig
 
 
@@ -22,6 +24,19 @@ def _resolve_dtype_value(value) -> torch.dtype | None:
     if isinstance(value, str):
         return _KV_CACHE_DTYPES.get(value.removeprefix("torch."))
     return None
+
+
+def _resolve_model_dir(model: str) -> str:
+    model = os.fspath(model)
+    if os.path.isdir(model):
+        return model
+    try:
+        return snapshot_download(repo_id=model)
+    except Exception as exc:
+        raise ValueError(
+            "model must be either a local Hugging Face checkpoint directory "
+            f"or a downloadable Hugging Face Hub repo id, got {model!r}"
+        ) from exc
 
 
 @dataclass(slots=True)
@@ -54,7 +69,7 @@ class Config:
     compact_kv_layer_major_metadata: bool = False
 
     def __post_init__(self):
-        assert os.path.isdir(self.model)
+        self.model = _resolve_model_dir(self.model)
         assert self.kvcache_block_size % 256 == 0
         assert 1 <= self.tensor_parallel_size <= 8
         assert self.kv_cache_dtype in _KV_CACHE_DTYPES, (

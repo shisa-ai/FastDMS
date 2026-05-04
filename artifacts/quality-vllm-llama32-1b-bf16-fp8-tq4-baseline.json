@@ -1,5 +1,5 @@
 {
-  "model": "/home/lhl/kvcache-quantization-research/results/dms/llama32-1b-cr8-v5-correctmask/final",
+  "model": "shisa-ai/Llama-3.2-1B-DMS-8x",
   "gpu": "2",
   "ctx_len": 1024,
   "gen_len": 16,

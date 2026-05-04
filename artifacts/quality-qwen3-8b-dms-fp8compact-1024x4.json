@@ -470,7 +470,7 @@
   "max_tokens": 16,
   "mean_abs_logit_diff": 0.11432643234729767,
   "mean_kld": 0.005284224636852741,
-  "model": "/home/lhl/.cache/huggingface/hub/models--nvidia--Qwen3-8B-DMS-8x/snapshots/231c1ed215489df75c08b790ec7f8e541952739c",
+  "model": "nvidia/Qwen3-8B-DMS-8x",
   "per_step_kld": [
     0.0,
     0.004109831061214209,
