@@ -15,7 +15,7 @@ from fastdms.engine.dms import (
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate nano-vLLM DMS metadata and mask semantics.")
+    parser = argparse.ArgumentParser(description="Validate FastDMS DMS metadata and mask semantics.")
     parser.add_argument("--model", type=Path, default=Path("results/dms/llama32-1b-cr8-v5-correctmask/final"))
     parser.add_argument("--output", type=Path)
     return parser.parse_args()

@@ -525,7 +525,7 @@ def json_safe_stats(stats: list[dict]) -> list[dict]:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Benchmark nano-vLLM Llama on WikiText-2.")
+    parser = argparse.ArgumentParser(description="Benchmark FastDMS Llama on WikiText-2.")
     parser.add_argument(
         "--model",
         default="results/dms/llama32-1b-cr8-v5-correctmask/final",

@@ -131,7 +131,7 @@ def run_parent(args: argparse.Namespace) -> None:
         rows.append(json.loads(proc.stdout.strip().splitlines()[-1]))
 
     result = {
-        "artifact": "plan13-c12-nanovllm-tiny-serving-diagnostic",
+        "artifact": "fastdms-tiny-serving-diagnostic",
         "model_dir": str(args.model_dir),
         "model_created": model_created,
         "note": (

@@ -1,7 +1,7 @@
 """A1.2 long-context dense guard.
 
 Teacher-forced 32-token decode at the retained 8192+128 surface. Compares
-nano-vLLM dense logits to a Hugging Face reference at every decode step and
+FastDMS dense logits to a Hugging Face reference at every decode step and
 records max-KLD plus greedy mismatch. Pass thresholds default to KLD<=1e-2 and
 greedy mismatch<=1 (a single tail mismatch is allowed because nondeterministic
 ops can flip a tied logit; this still catches RoPE / mask regressions).

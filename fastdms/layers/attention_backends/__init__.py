@@ -1,6 +1,6 @@
 """H1.2 attention-backend abstraction.
 
-Today nano-vLLM has one attention backend: ``flash_attn`` 2.8.x.
+Today FastDMS has one attention backend: ``flash_attn`` 2.8.x.
 
 The plan calls for the ability to swap in FlashInfer (FP8 paged decode) and
 FlashAttention 3 once available on the local environment. The flashinfer

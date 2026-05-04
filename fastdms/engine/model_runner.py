@@ -123,11 +123,11 @@ class ModelRunner:
 
         if self.world_size > 1:
             if rank == 0:
-                self.shm = SharedMemory(name="nanovllm", create=True, size=2**20)
+                self.shm = SharedMemory(name="fastdms", create=True, size=2**20)
                 dist.barrier()
             else:
                 dist.barrier()
-                self.shm = SharedMemory(name="nanovllm")
+                self.shm = SharedMemory(name="fastdms")
                 self.loop()
 
     def load_dms_metadata(self) -> DMSMetadata | None:

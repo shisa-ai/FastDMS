@@ -38,7 +38,7 @@ def parse_env(items: list[str]) -> dict[str, str]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Compare two nano-vLLM env surfaces with forced-history logits."
+        description="Compare two FastDMS env surfaces with forced-history logits."
     )
     parser.add_argument("--model", type=Path, default=Path("results/dms/llama32-1b-cr8-v5-correctmask/final"))
     parser.add_argument("--ctx-len", type=int, default=8192)
@@ -63,7 +63,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reference-mode", default="reference")
     parser.add_argument("--candidate-mode", default="candidate")
     parser.add_argument(
-        "--clear-nanovllm-env",
+        "--clear-fastdms-env",
         action="store_true",
         help="Clear inherited FASTDMS_* variables before applying each env surface.",
     )
@@ -72,10 +72,10 @@ def parse_args() -> argparse.Namespace:
 
 
 @contextmanager
-def temporary_env(updates: dict[str, str], *, clear_nanovllm_env: bool):
+def temporary_env(updates: dict[str, str], *, clear_fastdms_env: bool):
     old_env = os.environ.copy()
     try:
-        if clear_nanovllm_env:
+        if clear_fastdms_env:
             for key in list(os.environ):
                 if key.startswith("FASTDMS_"):
                     os.environ.pop(key, None)
@@ -114,7 +114,7 @@ def run_case(
     forced_tokens: list[list[int]] | None = None,
 ) -> dict:
     concurrency = len(prompts)
-    with temporary_env(env_updates, clear_nanovllm_env=args.clear_nanovllm_env):
+    with temporary_env(env_updates, clear_fastdms_env=args.clear_fastdms_env):
         llm = LLM(
             str(args.model),
             enforce_eager=True,

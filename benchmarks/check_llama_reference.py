@@ -14,7 +14,7 @@ from fastdms.utils.context import reset_context
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Compare nano-vLLM Llama prefill logits to HF reference.")
+    parser = argparse.ArgumentParser(description="Compare FastDMS Llama prefill logits to HF reference.")
     parser.add_argument("--model", type=Path, required=True)
     parser.add_argument("--prompt", default="The capital of France is")
     parser.add_argument("--max-model-len", type=int, default=128)
