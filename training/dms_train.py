@@ -12,7 +12,7 @@ Two-phase training:
     distillation. CR annealed linearly from 1 to target_cr over 100 steps per CR unit.
 
 Usage:
-    python -m shisa_kvquant.dms_train \
+    python -m training.dms_train \
         --model Qwen/Qwen3.5-0.8B \
         --target-cr 8 \
         --context-len 4096 \

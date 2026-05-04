@@ -6,13 +6,13 @@ from the previous layer's reconstructed keys (or [keys, values]). Predictors are
 via closed-form OLS on calibration data.
 
 Usage:
-    python -m shisa_kvquant.train_predictors \
+    python -m training.train_predictors \
         --model_name Qwen/Qwen3-8B \
         --dataset wikitext2 \
         --edenn_d 2 --edenn_n 256 \
         --predictors_output_path predictors.pt
 
-Ported from aquakv/train_predictors.py with shisa_kvquant imports.
+Ported from aquakv/train_predictors.py with training module imports.
 """
 import math
 import argparse

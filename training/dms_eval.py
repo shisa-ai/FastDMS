@@ -9,13 +9,13 @@ Evicted tokens outside the sliding window are masked from attention.
 Supports optional HIGGS quantization of surviving KV entries via --higgs-bits.
 
 Usage:
-    python -m shisa_kvquant.dms_eval \
+    python -m training.dms_eval \
         --model results/dms/llama32-1b-cr8-v4-full/final \
         --vanilla-model meta-llama/Llama-3.2-1B \
         --device cuda:1
 
     # DMS + HIGGS 4-bit composition:
-    python -m shisa_kvquant.dms_eval \
+    python -m training.dms_eval \
         --model results/dms/llama32-1b-cr8-v4-full/final \
         --vanilla-model meta-llama/Llama-3.2-1B \
         --higgs-bits 4 \
@@ -246,7 +246,11 @@ def evaluate_ppl(
 
 def make_higgs_quantizer(bits: int, channel_size: int):
     """Create a HiggsQuantizer for the given bit-width and channel size."""
-    from shisa_kvquant.quantizers import HiggsQuantizer
+    try:
+        from .quantizers import HiggsQuantizer
+    except ImportError:  # pragma: no cover - direct script execution fallback
+        from quantizers import HiggsQuantizer
+
     edenn_n = {2: 16, 3: 64, 4: 256}[bits]
     return HiggsQuantizer(
         hadamard_groupsize=channel_size,
