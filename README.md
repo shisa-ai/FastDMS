@@ -41,16 +41,18 @@ FastDMS is benchmarked on WikiText-2 with `ctx_len=8192`, `gen_len=128`, and pos
 
 ### shisa-ai/Llama-3.2-1B-DMS-8x
 
-The zero-BF16 FastDMS default is `1.52x` / `1.53x` faster than vLLM BF16 decode at `c=1` / `c=8`, while using `5.6x` / `4.8x` less KV memory. Against vLLM FP8, it is `1.43x` / `1.25x` faster decode and `2.8x` / `2.4x` smaller in KV. The default-off B46 c=1 speed profile reaches `2.30x` BF16 decode at the same compact-KV footprint, with `0.719 GiB` of int4 shadow storage.
+The zero-BF16 FastDMS default is `1.52x` / `1.53x` faster than vLLM BF16 decode at `c=1` / `c=8`, while using `5.6x` / `4.8x` less KV memory. Against vLLM FP8, it is `1.43x` / `1.25x` faster decode and `2.8x` / `2.4x` smaller in KV. vLLM's TurboQuant 4-bit is actually *slower* than BF16 (`0.73x` / `0.72x` decode) for only `2.2x` KV savings — and with [worse output quality](#shisa-aillama-32-1b-dms-8x-2). The default-off B46 c=1 speed profile reaches `2.30x` BF16 decode at the same compact-KV footprint, with `0.719 GiB` of int4 shadow storage.
 
 | Path | c | Prefill tok/s | Prefill vs BF16 | Decode tok/s | Decode vs BF16 | KV / stage memory | Status |
 | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
 | vLLM BF16 | 1 | `123098.0` | `1.00x` | `459.4` | `1.00x` | `0.312 GiB` BF16 KV | dense BF16-KV baseline |
 | vLLM FP8 | 1 | `119991.3` | `0.97x` | `489.4` | `1.07x` | `0.156 GiB` FP8 KV | dense FP8-KV baseline |
+| vLLM TurboQuant `4bit_nc` | 1 | `126429.0` | `1.03x` | `333.4` | `0.73x` | `0.142 GiB` TQ4 KV | 4-bit KV baseline |
 | FastDMS FP8 compact-DMS default | 1 | **`123194.6`** | **`1.00x`** | **`698.9`** | **`1.52x`** | **`0.056 GiB`** | promoted zero-BF16 row |
 | FastDMS B46 int4 speed profile | 1 | `121489.9` | `0.99x` | **`1060.0`** | **`2.31x`** | `0.056 GiB` + `0.719 GiB` int4 shadow | default-off storage-for-speed |
 | vLLM BF16 | 8 | `103668.5` | `1.00x` | `2357.5` | `1.00x` | `2.062 GiB` BF16 KV | dense BF16-KV baseline |
 | vLLM FP8 | 8 | `102959.5` | `0.99x` | `2888.7` | `1.23x` | `1.031 GiB` FP8 KV | dense FP8-KV baseline |
+| vLLM TurboQuant `4bit_nc` | 8 | `104409.9` | `1.01x` | `1696.0` | `0.72x` | `0.939 GiB` TQ4 KV | 4-bit KV baseline |
 | FastDMS FP8 compact-DMS default | 8 | **`105531.7`** | **`1.02x`** | **`3606.9`** | **`1.53x`** | **`0.431 GiB`** | promoted zero-BF16 row |
 | FastDMS B25 narrow int4 speed profile | 8 | `104753.7` | `1.01x` | `3640.7` | `1.54x` | `0.431 GiB` + `0.078 GiB` int4 shadow | default-off storage-for-speed |
 | FastDMS BF16-attention speed control | 8 | `108070.5` | `1.04x` | **`3745.3`** | **`1.59x`** | `0.429 GiB` + `0.312 GiB` BF16 backing | explicit speed control |
@@ -74,12 +76,12 @@ FastDMS performs similarly well with Nvidia's Qwen3-8B example model. It is `1.5
 
 Compact DMS saves real allocator/device memory, not just theoretical KV bytes. The table below uses the same WikiText-2 `ctx_len=8192`, `gen_len=128` rows as the speed tables above. All vLLM baselines use exact-sized token pools matching the workload. KV/stage memory is the cache or cache-plus-staging footprint. vLLM BF16 means `dtype=bfloat16` with `kv_cache_dtype=auto`; vLLM FP8 means `kv_cache_dtype=fp8`.
 
-| Model / compact-DMS row | c | vLLM BF16 KV → FastDMS KV | BF16 KV saved | vLLM FP8 KV → FastDMS KV | FP8 KV saved |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Llama-3.2-1B FastDMS default | 1 | `0.312 → 0.056 GiB` | **`5.6x`** | `0.156 → 0.056 GiB` | **`2.8x`** |
-| Llama-3.2-1B FastDMS default | 8 | `2.062 → 0.431 GiB` | **`4.8x`** | `1.031 → 0.431 GiB` | **`2.4x`** |
-| Qwen3-8B FastDMS compact DMS | 1 | `1.406 → 0.184 GiB` | **`7.6x`** | `0.703 → 0.184 GiB` | **`3.8x`** |
-| Qwen3-8B FastDMS compact DMS | 8 | `9.281 → 1.462 GiB` | **`6.3x`** | `4.641 → 1.462 GiB` | **`3.2x`** |
+| Model / compact-DMS row | c | vLLM BF16 KV → FastDMS KV | BF16 KV saved | vLLM FP8 KV → FastDMS KV | FP8 KV saved | vLLM TQ4 KV → FastDMS KV | TQ4 KV saved |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Llama-3.2-1B FastDMS default | 1 | `0.312 → 0.056 GiB` | **`5.6x`** | `0.156 → 0.056 GiB` | **`2.8x`** | `0.142 → 0.056 GiB` | **`2.5x`** |
+| Llama-3.2-1B FastDMS default | 8 | `2.062 → 0.431 GiB` | **`4.8x`** | `1.031 → 0.431 GiB` | **`2.4x`** | `0.939 → 0.431 GiB` | **`2.2x`** |
+| Qwen3-8B FastDMS compact DMS | 1 | `1.406 → 0.184 GiB` | **`7.6x`** | `0.703 → 0.184 GiB` | **`3.8x`** | — | — |
+| Qwen3-8B FastDMS compact DMS | 8 | `9.281 → 1.462 GiB` | **`6.3x`** | `4.641 → 1.462 GiB` | **`3.2x`** | — | — |
 
 Per token, Qwen3 KV is larger: about `72 KiB/token` for FP8 KV (`36` layers × `8` KV heads × `128` head dim × K/V) versus Llama-3.2-1B’s `16 KiB/token`.
 
