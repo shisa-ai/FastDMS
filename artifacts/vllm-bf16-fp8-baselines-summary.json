@@ -1,0 +1,400 @@
+{
+  "schema_version": "readme_vllm_bf16_fp8_baselines_v1",
+  "created_at": "2026-05-01T06:39:24.103224+00:00",
+  "gpu": 2,
+  "python": "/opt/miniforge/envs/vllm-nightly/bin/python",
+  "measurement": "vLLM benchmark post-warmup timing from scripts/bench_vllm_turboquant.py; whole-GPU memory.used sampled through nvidia-smi while each benchmark subprocess ran.",
+  "sample_period_s": 0.1,
+  "supersedes_failed_attempt": "Earlier same-path summary used the kvcache env without vLLM installed and was overwritten.",
+  "rows": [
+    {
+      "label": "llama_8k_bf16_c1c8",
+      "artifact": "artifacts/validation/readme-vllm-llama32-1b-bf16-c1c8-8k-gpu2-20260501.json",
+      "log_path": "results/readme-vllm-baseline-logs/llama_8k_bf16_c1c8.log",
+      "command": "/opt/miniforge/envs/vllm-nightly/bin/python /home/lhl/kvcache-quantization-research/scripts/bench_vllm_turboquant.py run --model /home/lhl/kvcache-quantization-research/results/dms/llama32-1b-cr8-v5-correctmask/final --gpu 2 --ctx-len 8192 --gen-len 128 --token-pool 280500 --concurrency 1 8 --configs bf16 --prompt-source wikitext2 --skip-accuracy --output /home/lhl/kvcache-quantization-research/artifacts/validation/readme-vllm-llama32-1b-bf16-c1c8-8k-gpu2-20260501.json",
+      "returncode": 0,
+      "elapsed_s": 68.27407975587994,
+      "baseline_mib": 104,
+      "observed_peak_mib": 14778,
+      "observed_peak_gib": 14.431640625,
+      "samples": 526,
+      "status": "ok",
+      "ctx_len": 8192,
+      "gen_len": 128,
+      "token_pool": 280500,
+      "software": {
+        "vllm": "0.19.2rc1.dev36+ga023edfa5",
+        "torch": "2.11.0+cu130",
+        "torch_cuda": "13.0"
+      },
+      "configs": {
+        "bf16": {
+          "bytes_per_token": 32768,
+          "kv_memory_gib": 8.5601806640625,
+          "kv_cache_dtype": "auto"
+        }
+      },
+      "speed": [
+        {
+          "config": "bf16",
+          "c": 1,
+          "prefill_tok_s": 121977.998,
+          "decode_tok_s": 460.41659127763955,
+          "kv_cache_memory_bytes": 9191424000,
+          "prefill_elapsed_s": 0.06716,
+          "ttft_ms_max": 67.16,
+          "itl_ms_max": 2.214
+        },
+        {
+          "config": "bf16",
+          "c": 8,
+          "prefill_tok_s": 102593.716,
+          "decode_tok_s": 2300.2305262819523,
+          "kv_cache_memory_bytes": 9191424000,
+          "prefill_elapsed_s": 0.638792,
+          "ttft_ms_max": 638.792,
+          "itl_ms_max": 7.967
+        }
+      ]
+    },
+    {
+      "label": "qwen_8k_bf16_fp8_c1",
+      "artifact": "artifacts/validation/readme-vllm-qwen3-8b-bf16-fp8-c1-8k-pages40-gpu2-20260501.json",
+      "log_path": "results/readme-vllm-baseline-logs/qwen_8k_bf16_fp8_c1.log",
+      "command": "/opt/miniforge/envs/vllm-nightly/bin/python /home/lhl/kvcache-quantization-research/scripts/bench_vllm_turboquant.py run --model /home/lhl/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218 --gpu 2 --ctx-len 8192 --gen-len 128 --token-pool 10240 --concurrency 1 --configs bf16 fp8 --prompt-source wikitext2 --skip-accuracy --output /home/lhl/kvcache-quantization-research/artifacts/validation/readme-vllm-qwen3-8b-bf16-fp8-c1-8k-pages40-gpu2-20260501.json",
+      "returncode": 0,
+      "elapsed_s": 174.02791916695423,
+      "baseline_mib": 104,
+      "observed_peak_mib": 21352,
+      "observed_peak_gib": 20.8515625,
+      "samples": 1351,
+      "status": "ok",
+      "ctx_len": 8192,
+      "gen_len": 128,
+      "token_pool": 10240,
+      "software": {
+        "vllm": "0.19.2rc1.dev36+ga023edfa5",
+        "torch": "2.11.0+cu130",
+        "torch_cuda": "13.0"
+      },
+      "configs": {
+        "bf16": {
+          "bytes_per_token": 147456,
+          "kv_memory_gib": 1.40625,
+          "kv_cache_dtype": "auto"
+        },
+        "fp8": {
+          "bytes_per_token": 73728,
+          "kv_memory_gib": 0.703125,
+          "kv_cache_dtype": "fp8"
+        }
+      },
+      "speed": [
+        {
+          "config": "bf16",
+          "c": 1,
+          "prefill_tok_s": 17143.645,
+          "decode_tok_s": 89.43664369946151,
+          "kv_cache_memory_bytes": 1509949440,
+          "prefill_elapsed_s": 0.477845,
+          "ttft_ms_max": 477.845,
+          "itl_ms_max": 11.332
+        },
+        {
+          "config": "fp8",
+          "c": 1,
+          "prefill_tok_s": 16700.133,
+          "decode_tok_s": 93.11743541598325,
+          "kv_cache_memory_bytes": 754974720,
+          "prefill_elapsed_s": 0.490535,
+          "ttft_ms_max": 490.535,
+          "itl_ms_max": 10.875
+        }
+      ]
+    },
+    {
+      "label": "qwen_8k_bf16_fp8_c8",
+      "artifact": "artifacts/validation/readme-vllm-qwen3-8b-bf16-fp8-c8-8k-pages264-gpu2-20260501.json",
+      "log_path": "results/readme-vllm-baseline-logs/qwen_8k_bf16_fp8_c8.log",
+      "command": "/opt/miniforge/envs/vllm-nightly/bin/python /home/lhl/kvcache-quantization-research/scripts/bench_vllm_turboquant.py run --model /home/lhl/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218 --gpu 2 --ctx-len 8192 --gen-len 128 --token-pool 67584 --concurrency 8 --configs bf16 fp8 --prompt-source wikitext2 --skip-accuracy --output /home/lhl/kvcache-quantization-research/artifacts/validation/readme-vllm-qwen3-8b-bf16-fp8-c8-8k-pages264-gpu2-20260501.json",
+      "returncode": 0,
+      "elapsed_s": 133.78155952785164,
+      "baseline_mib": 104,
+      "observed_peak_mib": 29900,
+      "observed_peak_gib": 29.19921875,
+      "samples": 1036,
+      "status": "ok",
+      "ctx_len": 8192,
+      "gen_len": 128,
+      "token_pool": 67584,
+      "software": {
+        "vllm": "0.19.2rc1.dev36+ga023edfa5",
+        "torch": "2.11.0+cu130",
+        "torch_cuda": "13.0"
+      },
+      "configs": {
+        "bf16": {
+          "bytes_per_token": 147456,
+          "kv_memory_gib": 9.28125,
+          "kv_cache_dtype": "auto"
+        },
+        "fp8": {
+          "bytes_per_token": 73728,
+          "kv_memory_gib": 4.640625,
+          "kv_cache_dtype": "fp8"
+        }
+      },
+      "speed": [
+        {
+          "config": "bf16",
+          "c": 8,
+          "prefill_tok_s": 15800.246,
+          "decode_tok_s": 444.5887601757741,
+          "kv_cache_memory_bytes": 9965666304,
+          "prefill_elapsed_s": 4.147784,
+          "ttft_ms_max": 4147.784,
+          "itl_ms_max": 40.517
+        },
+        {
+          "config": "fp8",
+          "c": 8,
+          "prefill_tok_s": 15659.123,
+          "decode_tok_s": 583.3933244810946,
+          "kv_cache_memory_bytes": 4982833152,
+          "prefill_elapsed_s": 4.185164,
+          "ttft_ms_max": 4185.164,
+          "itl_ms_max": 41.94
+        }
+      ]
+    },
+    {
+      "label": "llama_max_bf16_fp8_c1",
+      "artifact": "artifacts/validation/readme-vllm-llama32-1b-bf16-fp8-c1-130944-gpu2-20260501.json",
+      "log_path": "results/readme-vllm-baseline-logs/llama_max_bf16_fp8_c1-margin.log",
+      "command": "/opt/miniforge/envs/vllm-nightly/bin/python /home/lhl/kvcache-quantization-research/scripts/bench_vllm_turboquant.py run --model /home/lhl/kvcache-quantization-research/results/dms/llama32-1b-cr8-v5-correctmask/final --gpu 2 --ctx-len 130944 --gen-len 128 --token-pool 135168 --concurrency 1 --configs bf16 fp8 --prompt-source wikitext2_wrap --skip-accuracy --output /home/lhl/kvcache-quantization-research/artifacts/validation/readme-vllm-llama32-1b-bf16-fp8-c1-130944-gpu2-20260501.json",
+      "returncode": 0,
+      "elapsed_s": 121.0662070310209,
+      "baseline_mib": 104,
+      "observed_peak_mib": 11182,
+      "observed_peak_gib": 10.919921875,
+      "samples": 941,
+      "timed_out": false,
+      "status": "ok",
+      "ctx_len": 130944,
+      "gen_len": 128,
+      "token_pool": 135168,
+      "software": {
+        "vllm": "0.19.2rc1.dev36+ga023edfa5",
+        "torch": "2.11.0+cu130",
+        "torch_cuda": "13.0"
+      },
+      "configs": {
+        "bf16": {
+          "bytes_per_token": 32768,
+          "kv_memory_gib": 4.125,
+          "kv_cache_dtype": "auto"
+        },
+        "fp8": {
+          "bytes_per_token": 16384,
+          "kv_memory_gib": 2.0625,
+          "kv_cache_dtype": "fp8"
+        }
+      },
+      "speed": [
+        {
+          "config": "bf16",
+          "c": 1,
+          "prefill_tok_s": 22906.35,
+          "decode_tok_s": 189.1272518388756,
+          "kv_cache_memory_bytes": 4429185024,
+          "prefill_elapsed_s": 5.716493,
+          "ttft_ms_max": 5716.493,
+          "itl_ms_max": 4.731
+        },
+        {
+          "config": "fp8",
+          "c": 1,
+          "prefill_tok_s": 21639.797,
+          "decode_tok_s": 265.9357763113235,
+          "kv_cache_memory_bytes": 2214592512,
+          "prefill_elapsed_s": 6.051073,
+          "ttft_ms_max": 6051.073,
+          "itl_ms_max": 3.354
+        }
+      ]
+    },
+    {
+      "label": "llama_max_bf16_fp8_c8",
+      "artifact": "artifacts/validation/readme-vllm-llama32-1b-bf16-fp8-c8-130944-gpu2-20260501.json",
+      "log_path": "results/readme-vllm-baseline-logs/llama_max_bf16_fp8_c8-margin.log",
+      "command": "/opt/miniforge/envs/vllm-nightly/bin/python /home/lhl/kvcache-quantization-research/scripts/bench_vllm_turboquant.py run --model /home/lhl/kvcache-quantization-research/results/dms/llama32-1b-cr8-v5-correctmask/final --gpu 2 --ctx-len 130944 --gen-len 128 --token-pool 1081344 --concurrency 8 --configs bf16 fp8 --prompt-source wikitext2_wrap --skip-accuracy --output /home/lhl/kvcache-quantization-research/artifacts/validation/readme-vllm-llama32-1b-bf16-fp8-c8-130944-gpu2-20260501.json",
+      "returncode": 0,
+      "elapsed_s": 479.8999073118903,
+      "baseline_mib": 104,
+      "observed_peak_mib": 39838,
+      "observed_peak_gib": 38.904296875,
+      "samples": 3743,
+      "timed_out": false,
+      "status": "ok",
+      "ctx_len": 130944,
+      "gen_len": 128,
+      "token_pool": 1081344,
+      "software": {
+        "vllm": "0.19.2rc1.dev36+ga023edfa5",
+        "torch": "2.11.0+cu130",
+        "torch_cuda": "13.0"
+      },
+      "configs": {
+        "bf16": {
+          "bytes_per_token": 32768,
+          "kv_memory_gib": 33.0,
+          "kv_cache_dtype": "auto"
+        },
+        "fp8": {
+          "bytes_per_token": 16384,
+          "kv_memory_gib": 16.5,
+          "kv_cache_dtype": "fp8"
+        }
+      },
+      "speed": [
+        {
+          "config": "bf16",
+          "c": 8,
+          "prefill_tok_s": 20384.005,
+          "decode_tok_s": 178.7568068524849,
+          "kv_cache_memory_bytes": 35433480192,
+          "prefill_elapsed_s": 51.390883,
+          "ttft_ms_max": 51390.883,
+          "itl_ms_max": 369.914
+        },
+        {
+          "config": "fp8",
+          "c": 8,
+          "prefill_tok_s": 20448.632,
+          "decode_tok_s": 492.2152548525041,
+          "kv_cache_memory_bytes": 17716740096,
+          "prefill_elapsed_s": 51.228463,
+          "ttft_ms_max": 51228.463,
+          "itl_ms_max": 360.945
+        }
+      ]
+    },
+    {
+      "label": "qwen_max_bf16_fp8_c1",
+      "artifact": "artifacts/validation/readme-vllm-qwen3-8b-bf16-fp8-c1-40832-gpu2-20260501.json",
+      "log_path": "results/readme-vllm-baseline-logs/qwen_max_bf16_fp8_c1-margin.log",
+      "command": "/opt/miniforge/envs/vllm-nightly/bin/python /home/lhl/kvcache-quantization-research/scripts/bench_vllm_turboquant.py run --model /home/lhl/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218 --gpu 2 --ctx-len 40832 --gen-len 128 --token-pool 45056 --concurrency 1 --configs bf16 fp8 --prompt-source wikitext2_wrap --skip-accuracy --output /home/lhl/kvcache-quantization-research/artifacts/validation/readme-vllm-qwen3-8b-bf16-fp8-c1-40832-gpu2-20260501.json",
+      "returncode": 0,
+      "elapsed_s": 131.45795060996898,
+      "baseline_mib": 104,
+      "observed_peak_mib": 26670,
+      "observed_peak_gib": 26.044921875,
+      "samples": 1023,
+      "timed_out": false,
+      "status": "ok",
+      "ctx_len": 40832,
+      "gen_len": 128,
+      "token_pool": 45056,
+      "software": {
+        "vllm": "0.19.2rc1.dev36+ga023edfa5",
+        "torch": "2.11.0+cu130",
+        "torch_cuda": "13.0"
+      },
+      "configs": {
+        "bf16": {
+          "bytes_per_token": 147456,
+          "kv_memory_gib": 6.1875,
+          "kv_cache_dtype": "auto"
+        },
+        "fp8": {
+          "bytes_per_token": 73728,
+          "kv_memory_gib": 3.09375,
+          "kv_cache_dtype": "fp8"
+        }
+      },
+      "speed": [
+        {
+          "config": "bf16",
+          "c": 1,
+          "prefill_tok_s": 9614.794,
+          "decode_tok_s": 69.23607019254769,
+          "kv_cache_memory_bytes": 6643777536,
+          "prefill_elapsed_s": 4.246789,
+          "ttft_ms_max": 4246.789,
+          "itl_ms_max": 14.304
+        },
+        {
+          "config": "fp8",
+          "c": 1,
+          "prefill_tok_s": 9321.521,
+          "decode_tok_s": 79.46370668189769,
+          "kv_cache_memory_bytes": 3321888768,
+          "prefill_elapsed_s": 4.380401,
+          "ttft_ms_max": 4380.401,
+          "itl_ms_max": 12.357
+        }
+      ]
+    },
+    {
+      "label": "qwen_max_bf16_fp8_c8",
+      "artifact": "artifacts/validation/readme-vllm-qwen3-8b-bf16-fp8-c8-40832-gpu2-20260501.json",
+      "log_path": "results/readme-vllm-baseline-logs/qwen_max_bf16_fp8_c8-margin.log",
+      "command": "/opt/miniforge/envs/vllm-nightly/bin/python /home/lhl/kvcache-quantization-research/scripts/bench_vllm_turboquant.py run --model /home/lhl/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218 --gpu 2 --ctx-len 40832 --gen-len 128 --token-pool 360448 --concurrency 8 --configs bf16 fp8 --prompt-source wikitext2_wrap --skip-accuracy --output /home/lhl/kvcache-quantization-research/artifacts/validation/readme-vllm-qwen3-8b-bf16-fp8-c8-40832-gpu2-20260501.json",
+      "returncode": 0,
+      "elapsed_s": 390.55878167320043,
+      "baseline_mib": 104,
+      "observed_peak_mib": 70884,
+      "observed_peak_gib": 69.22265625,
+      "samples": 3027,
+      "timed_out": false,
+      "status": "ok",
+      "ctx_len": 40832,
+      "gen_len": 128,
+      "token_pool": 360448,
+      "software": {
+        "vllm": "0.19.2rc1.dev36+ga023edfa5",
+        "torch": "2.11.0+cu130",
+        "torch_cuda": "13.0"
+      },
+      "configs": {
+        "bf16": {
+          "bytes_per_token": 147456,
+          "kv_memory_gib": 49.5,
+          "kv_cache_dtype": "auto"
+        },
+        "fp8": {
+          "bytes_per_token": 73728,
+          "kv_memory_gib": 24.75,
+          "kv_cache_dtype": "fp8"
+        }
+      },
+      "speed": [
+        {
+          "config": "bf16",
+          "c": 8,
+          "prefill_tok_s": 9116.611,
+          "decode_tok_s": 161.56232488024153,
+          "kv_cache_memory_bytes": 53150220288,
+          "prefill_elapsed_s": 35.83086,
+          "ttft_ms_max": 35830.86,
+          "itl_ms_max": 278.547
+        },
+        {
+          "config": "fp8",
+          "c": 8,
+          "prefill_tok_s": 8996.856,
+          "decode_tok_s": 286.2653763458977,
+          "kv_cache_memory_bytes": 26575110144,
+          "prefill_elapsed_s": 36.307793,
+          "ttft_ms_max": 36307.793,
+          "itl_ms_max": 268.085
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Dropped failed exact-pool max-context attempt before rerunning with token-pool margin."
+  ],
+  "max_context_prompt_source": "wikitext2_wrap",
+  "max_context_token_pool_note": "Max-context vLLM rows use a small token-pool margin above ctx+gen to avoid exact-full-pool scheduler waits."
+}

@@ -1,0 +1,214 @@
+{
+  "model": "/home/lhl/kvcache-quantization-research/results/dms/llama32-1b-cr8-v5-correctmask/final",
+  "gpu": "2",
+  "ctx_len": 1024,
+  "gen_len": 16,
+  "token_pool": 32768,
+  "prompt_source": "wikitext2",
+  "shape": {
+    "num_layers": 16,
+    "num_attention_heads": 32,
+    "num_kv_heads": 8,
+    "head_dim": 64
+  },
+  "software": {
+    "vllm": "0.19.2rc1.dev36+ga023edfa5",
+    "torch": "2.11.0+cu130",
+    "torch_cuda": "13.0"
+  },
+  "accuracy_method": {
+    "ctx_len": 1024,
+    "decode_len": 16,
+    "samples": 4,
+    "description": "Generate fixed-length greedy continuations with full-vocab logprobs; skip prefill step 0; score candidate decode steps only while the generated prefix still matches BF16."
+  },
+  "configs": {
+    "bf16": {
+      "bytes_per_token": 32768,
+      "kv_memory_gib": 1.0,
+      "kv_cache_dtype": "auto"
+    },
+    "fp8": {
+      "bytes_per_token": 16384,
+      "kv_memory_gib": 0.5,
+      "kv_cache_dtype": "fp8"
+    },
+    "turboquant_4bit_nc": {
+      "bytes_per_token": 14912,
+      "kv_memory_gib": 0.455078125,
+      "kv_cache_dtype": "turboquant_4bit_nc"
+    }
+  },
+  "speed": [
+    {
+      "config": "bf16",
+      "concurrency": 1,
+      "ctx_len": 1024,
+      "gen_len": 16,
+      "prompt_source": "wikitext2",
+      "kv_cache_memory_bytes": 1073741824,
+      "gen1": {
+        "elapsed_s": 0.009272298077121377,
+        "output_tokens": 1
+      },
+      "genN": {
+        "elapsed_s": 0.040005868999287486,
+        "output_tokens": 16,
+        "prefill_completed_requests": 1,
+        "prefill_input_tokens": 1024,
+        "prefill_elapsed_s": 0.009685,
+        "prefill_tok_s": 105727.477,
+        "prefill_tok_s_metric": "sum(prompt_tokens_for_requests_with_first_token) / (latest_first_token_time - submit_time)",
+        "ttft_ms_p50": 9.685,
+        "ttft_ms_p90": 9.685,
+        "ttft_ms_p99": 9.685,
+        "ttft_ms_max": 9.685,
+        "itl_ms_p50": 2.018,
+        "itl_ms_p90": 2.018,
+        "itl_ms_p99": 2.018,
+        "itl_ms_max": 2.018
+      },
+      "decode_tok_s": 488.0656412490448,
+      "prefill_tok_s": 105727.477,
+      "prefill_completed_requests": 1,
+      "prefill_input_tokens": 1024,
+      "prefill_elapsed_s": 0.009685,
+      "prefill_tok_s_metric": "sum(prompt_tokens_for_requests_with_first_token) / (latest_first_token_time - submit_time)",
+      "ttft_ms_p50": 9.685,
+      "ttft_ms_p90": 9.685,
+      "ttft_ms_p99": 9.685,
+      "ttft_ms_max": 9.685,
+      "itl_ms_p50": 2.018,
+      "itl_ms_p90": 2.018,
+      "itl_ms_p99": 2.018,
+      "itl_ms_max": 2.018
+    },
+    {
+      "config": "fp8",
+      "concurrency": 1,
+      "ctx_len": 1024,
+      "gen_len": 16,
+      "prompt_source": "wikitext2",
+      "kv_cache_memory_bytes": 536870912,
+      "gen1": {
+        "elapsed_s": 0.009123356081545353,
+        "output_tokens": 1
+      },
+      "genN": {
+        "elapsed_s": 0.03962726192548871,
+        "output_tokens": 16,
+        "prefill_completed_requests": 1,
+        "prefill_input_tokens": 1024,
+        "prefill_elapsed_s": 0.009377,
+        "prefill_tok_s": 109203.338,
+        "prefill_tok_s_metric": "sum(prompt_tokens_for_requests_with_first_token) / (latest_first_token_time - submit_time)",
+        "ttft_ms_p50": 9.377,
+        "ttft_ms_p90": 9.377,
+        "ttft_ms_p99": 9.377,
+        "ttft_ms_max": 9.377,
+        "itl_ms_p50": 2.015,
+        "itl_ms_p90": 2.015,
+        "itl_ms_p99": 2.015,
+        "itl_ms_max": 2.015
+      },
+      "decode_tok_s": 491.740306200109,
+      "prefill_tok_s": 109203.338,
+      "prefill_completed_requests": 1,
+      "prefill_input_tokens": 1024,
+      "prefill_elapsed_s": 0.009377,
+      "prefill_tok_s_metric": "sum(prompt_tokens_for_requests_with_first_token) / (latest_first_token_time - submit_time)",
+      "ttft_ms_p50": 9.377,
+      "ttft_ms_p90": 9.377,
+      "ttft_ms_p99": 9.377,
+      "ttft_ms_max": 9.377,
+      "itl_ms_p50": 2.015,
+      "itl_ms_p90": 2.015,
+      "itl_ms_p99": 2.015,
+      "itl_ms_max": 2.015
+    },
+    {
+      "config": "turboquant_4bit_nc",
+      "concurrency": 1,
+      "ctx_len": 1024,
+      "gen_len": 16,
+      "prompt_source": "wikitext2",
+      "kv_cache_memory_bytes": 488636416,
+      "gen1": {
+        "elapsed_s": 0.009514692006632686,
+        "output_tokens": 1
+      },
+      "genN": {
+        "elapsed_s": 0.04413879499770701,
+        "output_tokens": 16,
+        "prefill_completed_requests": 1,
+        "prefill_input_tokens": 1024,
+        "prefill_elapsed_s": 0.009278,
+        "prefill_tok_s": 110373.585,
+        "prefill_tok_s_metric": "sum(prompt_tokens_for_requests_with_first_token) / (latest_first_token_time - submit_time)",
+        "ttft_ms_p50": 9.278,
+        "ttft_ms_p90": 9.278,
+        "ttft_ms_p99": 9.278,
+        "ttft_ms_max": 9.278,
+        "itl_ms_p50": 2.316,
+        "itl_ms_p90": 2.316,
+        "itl_ms_p99": 2.316,
+        "itl_ms_max": 2.316
+      },
+      "decode_tok_s": 433.224219667635,
+      "prefill_tok_s": 110373.585,
+      "prefill_completed_requests": 1,
+      "prefill_input_tokens": 1024,
+      "prefill_elapsed_s": 0.009278,
+      "prefill_tok_s_metric": "sum(prompt_tokens_for_requests_with_first_token) / (latest_first_token_time - submit_time)",
+      "ttft_ms_p50": 9.278,
+      "ttft_ms_p90": 9.278,
+      "ttft_ms_p99": 9.278,
+      "ttft_ms_max": 9.278,
+      "itl_ms_p50": 2.316,
+      "itl_ms_p90": 2.316,
+      "itl_ms_p99": 2.316,
+      "itl_ms_max": 2.316
+    }
+  ],
+  "accuracy": {
+    "bf16": {
+      "samples": 4,
+      "ctx_len": 1024,
+      "decode_len": 16,
+      "scored_steps": 60,
+      "ppl": 2.3748022341149584,
+      "mean_nll": 0.8649141641731452,
+      "kld_vs_bf16": 0.0,
+      "scored_token_match_rate": 1.0,
+      "generated_token_match_rate": 1.0,
+      "diverged_samples": 0,
+      "note": "decode-step probe; excludes prefill step and scores only histories whose generated prefix matches BF16"
+    },
+    "fp8": {
+      "samples": 4,
+      "ctx_len": 1024,
+      "decode_len": 16,
+      "scored_steps": 33,
+      "ppl": 2.089295815063858,
+      "mean_nll": 0.7368270786113995,
+      "kld_vs_bf16": 0.005110237356086269,
+      "scored_token_match_rate": 0.9393939393939394,
+      "generated_token_match_rate": 0.921875,
+      "diverged_samples": 2,
+      "note": "decode-step probe; excludes prefill step and scores only histories whose generated prefix matches BF16"
+    },
+    "turboquant_4bit_nc": {
+      "samples": 4,
+      "ctx_len": 1024,
+      "decode_len": 16,
+      "scored_steps": 22,
+      "ppl": 1.9606137863477597,
+      "mean_nll": 0.6732575805191036,
+      "kld_vs_bf16": 0.012730204621287884,
+      "scored_token_match_rate": 0.8636363636363636,
+      "generated_token_match_rate": 0.765625,
+      "diverged_samples": 3,
+      "note": "decode-step probe; excludes prefill step and scores only histories whose generated prefix matches BF16"
+    }
+  }
+}
