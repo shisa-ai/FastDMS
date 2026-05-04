@@ -136,7 +136,7 @@ def run_parent(args: argparse.Namespace) -> None:
         "model_created": model_created,
         "note": (
             "Tiny random Qwen3 diagnostic only. Use this to compare FastDMS dense vs compact "
-            "wiring, not as a quality or production-speed comparison to retained mini-sglang rows."
+            "wiring, not as a quality or production-speed comparison."
         ),
         "rows": rows,
     }

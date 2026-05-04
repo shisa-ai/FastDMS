@@ -30,7 +30,7 @@ def get_backend_name() -> str:
         raise RuntimeError(
             f"FASTDMS_ATTENTION_BACKEND={_PRODUCTION_BACKEND!r} is not implemented. "
             f"Available: {_AVAILABLE_BACKENDS}. FlashInfer + FA3 ports are deferred per "
-            "PLAN15 H1 (storage layout change required)."
+            "(storage layout change required)."
         )
     return _PRODUCTION_BACKEND
 

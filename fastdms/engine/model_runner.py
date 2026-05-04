@@ -235,7 +235,7 @@ class ModelRunner:
         available_bytes = int(total * config.gpu_memory_utilization - used - peak + current)
         # P0.3: explicit token-pool override forces a fixed dense KV pool independent
         # of gpu_memory_utilization. Useful for byte-identical comparisons against
-        # mini-sglang anchors. token_pool_tokens is converted to a block count.
+        # Baseline anchors. token_pool_tokens is converted to a block count.
         if config.num_page_override is not None:
             forced_blocks = int(config.num_page_override)
         elif config.token_pool_tokens is not None:

@@ -1,6 +1,6 @@
 """P0.2 retained comparison artifact generator.
 
-Diffs two bench_llama_wikitext2.py artifacts (one FastDMS row, one mini-sglang
+Diffs two bench_llama_wikitext2.py artifacts (one FastDMS row, one baseline
 row) and prints prefill/decode/memory ratios. Names the attention backend on
 each side so the comparison cannot be silently contaminated by backend drift.
 """
@@ -51,7 +51,7 @@ def _read(path: Path) -> dict[str, Any]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Compare two bench artifacts.")
-    parser.add_argument("--reference", type=Path, required=True, help="Anchor side (e.g. mini-sglang).")
+    parser.add_argument("--reference", type=Path, required=True, help="Anchor/baseline side.")
     parser.add_argument("--candidate", type=Path, required=True, help="Other side (e.g. FastDMS).")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()

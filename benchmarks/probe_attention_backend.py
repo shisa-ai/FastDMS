@@ -1,7 +1,7 @@
 """P0.4 retained backend-version probe.
 
 Records the attention-backend kernels each side of a comparison actually used.
-Run on each environment (mini-sglang env, fastdms env) and keep the JSON next
+Run on each environment and keep the JSON next
 to the comparison artifact so backend drift is mechanically named.
 """
 from __future__ import annotations

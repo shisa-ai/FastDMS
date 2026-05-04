@@ -955,7 +955,7 @@ def run_benchmark(args: argparse.Namespace) -> dict:
         "warmup": warmup_summaries,
         "notes": [
             "Row is diagnostic until the matching correctness/quality guard passes.",
-            "Compact DMS reports allocated dense scratch, allocated compact arena, and logical live compact bytes separately; promotion gates are separate PLAN14 items.",
+            "Compact DMS reports allocated dense scratch, allocated compact arena, and logical live compact bytes separately.",
         ],
     }
     row["roofline"] = roofline_summary(

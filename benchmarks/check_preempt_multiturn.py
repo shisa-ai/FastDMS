@@ -186,7 +186,7 @@ def main() -> None:
         "a14_compact_resume_constraint": (
             "compact + DMS preempt is currently unsupported; "
             "pack_compact_prefill raises if num_cached_tokens != 0. Documented "
-            "as known constraint per PLAN15 risk register #5."
+            "as known constraint."
         ),
         "a15_turns": args.turns,
         "a15_completions": multiturn_outputs,
