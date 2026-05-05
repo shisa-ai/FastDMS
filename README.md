@@ -208,7 +208,7 @@ print(outputs[0]["text"])
 ## Canonical Papers
 
 - **DMS**: [Inference-Time Hyper-Scaling with KV Cache Compression](https://openreview.net/forum?id=8ZiElzQxf1) ([arXiv:2506.05345](https://arxiv.org/abs/2506.05345)). NeurIPS 2025.
-  - NVIDIA reference implementation (discovered after independent re-implementation!): [Model-Optimizer/experimental/dms](https://github.com/NVIDIA/Model-Optimizer/tree/main/experimental/dms)
+  - NVIDIA reference implementation (discovered after independent re-implementation!): [Model-Optimizer/experimental/dms](https://github.com/NVIDIA/Model-Optimizer/tree/main/experimental/dms) (this implementation does dense KV during prefill, doesn't have DMS expiry for inference, and is not optimized for speed, but the trainer may be better/more mature)
 - **AQUA-KV**: [Cache Me If You Must: Adaptive Key-Value Quantization for Large Language Models](https://arxiv.org/abs/2501.19392).
 - **HIGGS**: [Pushing the Limits of Large Language Model Quantization via the Linearity Theorem](https://arxiv.org/abs/2411.17525).
 
