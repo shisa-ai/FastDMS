@@ -45,7 +45,7 @@ training = ["datasets", "fast-hadamard-transform"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["fastdms*"]
+include = ["fastdms*", "training*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

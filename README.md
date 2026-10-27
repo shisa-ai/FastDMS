@@ -205,6 +205,49 @@ outputs = llm.generate(["Hello, FastDMS."], sampling_params)
 print(outputs[0]["text"])
 ```
 
+## External DMS sidecars
+
+FastDMS supports separate eviction heads as well as baked-in borrowed-query DMS
+checkpoints. The public [Nanbeige4.3-33B sidecar](https://huggingface.co/shisa-ai/Nanbeige4.3-33B-DMS-2x)
+uses hipEngine-compatible schema-v2 BF16 safetensors and metadata. Its weights
+are Apache-2.0; FastDMS code remains MIT.
+
+```python
+from huggingface_hub import snapshot_download
+from fastdms import LLM, SamplingParams
+
+sidecar = snapshot_download("shisa-ai/Nanbeige4.3-33B-DMS-2x")
+llm = LLM(
+    "primitive-ai/Nanbeige4.3-33B-FP8",
+    enforce_eager=True,
+    max_model_len=32768,
+    max_num_batched_tokens=32768,
+    max_num_seqs=1,
+    compact_kv_enabled=True,
+    compact_kv_capacity_tokens=8 * 32768,
+    compact_kv_retention_mode="dms",
+    dms_metadata_path=f"{sidecar}/dms_metadata.json",
+    kv_cache_dtype="bfloat16",  # or float8_e4m3fn
+)
+print(llm.generate(["Explain Rayleigh scattering."],
+                   SamplingParams(temperature=0, max_tokens=128)))
+```
+
+External heads currently use the Llama implementation, including Nanbeige GQA.
+They preserve query channels. `threshold` and `exact_budget` prefill selection
+are supported; decode uses threshold decisions. The loader validates sidecar
+hashes, geometry and semantics. The selected policy retains half of eligible
+history and protects an 8192-token window. Capacity is head-token slots per
+layer, shared across KV heads, not tokens per head.
+
+See the [training guide](training/README.md),
+[candidate comparison](training/NANBEIGE_CANDIDATE_COMPARISON.md), and
+[final held-out results](training/NANBEIGE_PROGRESSIVE_RESULTS.md). The model card
+includes all result tables and exact checkpoint revisions. Format compatibility
+with hipEngine is tested; Nanbeige AMD serving is not qualified by these CUDA
+measurements. FastDMS loads the primitive-ai channel-FP8 checkpoint directly,
+preserving its saved weights and scales.
+
 ## Canonical Papers
 
 - **DMS**: [Inference-Time Hyper-Scaling with KV Cache Compression](https://openreview.net/forum?id=8ZiElzQxf1) ([arXiv:2506.05345](https://arxiv.org/abs/2506.05345)). NeurIPS 2025.

@@ -70,6 +70,9 @@ class ModelRunner:
         torch.set_default_device("cuda")
         self.model = build_model(hf_config)
         load_model(self.model, config.model)
+        if self.dms_metadata is not None and self.dms_metadata.sidecar_path is not None:
+            from fastdms.models.sidecar import attach_sidecar
+            attach_sidecar(self.model, self.dms_metadata)
         self.fp8_weight_modules = convert_linear_modules_to_fp8(self.model) if fp8_weights_enabled() else 0
         self.fp8_lm_head = False
         self.fp8_embedding = False

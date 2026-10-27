@@ -196,3 +196,7 @@ cython_debug/
 
 # Local coding-agent state
 .pi/
+
+# Local Nanbeige data, captures, checkpoints and release staging
+artifacts/nanbeige-*/
+artifacts/publish-nanbeige/

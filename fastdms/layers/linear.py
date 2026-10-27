@@ -642,6 +642,15 @@ def _fp8_linear(
     in_features = int(weight_fp8_t.size(0))
     out_features = int(weight_fp8_t.size(1))
     x_2d = x.reshape(-1, in_features)
+    # Bound activation-quantization temporaries for long-context prefill.
+    # Scaling is per token, so row chunks preserve the quantization rule.
+    if x_2d.shape[0] > 4096:
+        output = torch.empty((x_2d.shape[0], out_features), device=x.device, dtype=x.dtype)
+        for start in range(0, x_2d.shape[0], 4096):
+            output[start:start + 4096] = _fp8_linear(
+                x_2d[start:start + 4096], weight_fp8_t=weight_fp8_t,
+                weight_scale_inv=weight_scale_inv, bias=bias)
+        return output.reshape(*x.shape[:-1], out_features)
     if not _can_use_scaled_mm(x_2d):
         weight = (weight_fp8_t.to(dtype=x.dtype) * weight_scale_inv.to(dtype=x.dtype)).t().contiguous()
         return F.linear(x, weight, bias)
@@ -1080,6 +1089,8 @@ def convert_linear_modules_to_fp8(module: nn.Module) -> int:
     converted = 0
     for name, child in module.named_modules():
         if isinstance(child, LinearBase):
+            if child._fp8_weight_enabled:
+                continue  # Preserve checkpoint-native FP8 values and scales.
             is_attention = ".self_attn." in name
             use_attention_shadow = attention_shadow and is_attention and not attention_full
             force_attention_full = attention_full and is_attention

@@ -249,6 +249,21 @@ def test_compact_kv_manager_prepares_decode_metadata_and_append_slots():
     assert max_live_count == state.max_capacity_per_lh
 
 
+@pytest.mark.parametrize("device", ["cpu", "cuda"])
+def test_record_dms_decode_decisions_non_layer_major_int64_positions(device):
+    if device == "cuda" and not torch.cuda.is_available():
+        pytest.skip("CUDA unavailable")
+    manager = CompactKVManager(num_layers=2, num_kv_heads=2, capacity_tokens=32,
+                               max_model_len=16, device=device)
+    seq = Sequence([10, 11], SamplingParams(max_tokens=4))
+    state = manager.allocate(seq)
+    state.live_counts.fill_(1)
+    evictions = torch.ones((2, 1, 2), device=device, dtype=torch.bool)
+    manager.record_appended_dms_decisions(
+        [seq], torch.tensor([10], device=device, dtype=torch.int64), evictions)
+    assert state.token_positions[:, :, 0].tolist() == [[10, 10], [10, 10]]
+
+
 def test_record_dms_decode_decisions_accepts_layer_major_tensor():
     manager = CompactKVManager(
         num_layers=2,

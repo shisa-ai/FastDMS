@@ -99,7 +99,8 @@ class LlamaAttention(nn.Module):
         inline_q_rope = False
         if context.dms_capture_enabled:
             can_fuse_decode_preprocess = (
-                dms_fused_decode_preprocess_enabled()
+                not hasattr(self, "sidecar_weight")
+                and dms_fused_decode_preprocess_enabled()
                 and not context.is_prefill
                 and context.compact_kv_enabled
                 and context.compact_slot_mapping is not None
@@ -118,7 +119,18 @@ class LlamaAttention(nn.Module):
             evict_out = None
             if context.dms_layer_evictions_buffer is not None:
                 evict_out = context.dms_layer_evictions_buffer[layer_id]
-            if can_fuse_decode_preprocess:
+            if hasattr(self, "sidecar_weight"):
+                logits = torch.nn.functional.linear(hidden_states.float(), self.sidecar_weight, self.sidecar_bias)
+                evict_mask = logits * context.dms_alpha_scale - context.dms_alpha_offset > 0
+                if context.is_prefill and self.sidecar_selection_mode == "exact_budget":
+                    from fastdms.models.sidecar import exact_budget_decisions
+                    evict_mask = exact_budget_decisions(
+                        logits * context.dms_alpha_scale, context.cu_seqlens_q,
+                        context.streaming_pack_window_size, self.sidecar_target_cr)
+                if evict_out is not None:
+                    evict_out.copy_(evict_mask)
+                    evict_mask = evict_out
+            elif can_fuse_decode_preprocess:
                 inline_q_rope = (
                     compact_attention_inline_q_rope_enabled()
                     and compact_attention_splitk_enabled()

@@ -1712,7 +1712,9 @@ class CompactKVManager:
                 )
             idx = (live - 1).to(torch.long)
             # Scatter token_positions[layer, head, idx[layer, head]] = current_position
-            state.token_positions[layer_grid, head_grid, idx] = positions_t[batch_idx]
+            state.token_positions[layer_grid, head_grid, idx] = positions_t[batch_idx].to(
+                dtype=state.token_positions.dtype
+            )
             state.evict_mask[layer_grid, head_grid, idx] = evict_all[:, batch_idx, :]
 
         total = self.num_layers * batch * self.num_kv_heads

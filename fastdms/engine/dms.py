@@ -54,6 +54,8 @@ class DMSMetadata:
     target_cr: int | None = None
     context_len: int | None = None
     compression_mode: str | None = None
+    decision_source: str = "borrowed_query_channel_v1"
+    sidecar_path: str | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -73,7 +75,30 @@ def _metadata_from_config(
         "alpha_offset",
         config.get("dms_alpha_offset", config.get("dms_initial_alpha_offset", 5.0)),
     )
-    target_cr = config.get("target_cr", config.get("dms_cr"))
+    import math
+    if int(window_size) < 0 or not math.isfinite(float(alpha_scale)) or float(alpha_scale) == 0 or not math.isfinite(float(alpha_offset)):
+        raise ValueError("DMS window must be non-negative and scale/offset finite, with non-zero scale")
+    source = config.get("decision_source", "borrowed_query_channel_v1")
+    sidecar_path = None
+    if source == "external_linear_sidecar_v1":
+        import hashlib
+        if config.get("schema_version") != 2 or config.get("zero_borrowed_query_channel", True):
+            raise ValueError("external sidecars require schema v2 and preserved query channels")
+        if not config.get("trained_checkpoint", False):
+            raise ValueError("external sidecar metadata must identify a trained checkpoint")
+        if int(config.get("target_compression_ratio", 0)) < 1:
+            raise ValueError("external sidecar target compression ratio must be positive")
+        spec = config["sidecar"]
+        relative = Path(spec["path"])
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError("sidecar path must stay inside the metadata directory")
+        path = source_path.parent / relative
+        if hashlib.sha256(path.read_bytes()).hexdigest() != spec["sha256"]:
+            raise ValueError("sidecar SHA-256 mismatch")
+        sidecar_path = str(path)
+    elif source != "borrowed_query_channel_v1":
+        raise ValueError(f"unsupported DMS decision source: {source}")
+    target_cr = config.get("target_compression_ratio", config.get("target_cr", config.get("dms_cr")))
     context_len = config.get("context_len", config.get("max_position_embeddings"))
     return DMSMetadata(
         model_path=str(model_path),
@@ -86,6 +111,8 @@ def _metadata_from_config(
         target_cr=None if target_cr is None else int(target_cr),
         context_len=None if context_len is None else int(context_len),
         compression_mode=config.get("compression_mode"),
+        decision_source=source,
+        sidecar_path=sidecar_path,
     )
 
 
@@ -100,7 +127,7 @@ def load_dms_metadata(model_path: str | Path, metadata_path: str | Path | None =
     if metadata_path is not None:
         path = Path(metadata_path)
         data = json.loads(path.read_text(encoding="utf-8"))
-        config = data.get("config", data)
+        config = data.get("dms", data.get("config", data))
         return _metadata_from_config(
             model_path=model_path,
             source_path=path,
@@ -112,7 +139,7 @@ def load_dms_metadata(model_path: str | Path, metadata_path: str | Path | None =
     packaged = model_path / "dms_metadata.json"
     if packaged.exists():
         data = json.loads(packaged.read_text(encoding="utf-8"))
-        config = data.get("config", data)
+        config = data.get("dms", data.get("config", data))
         return _metadata_from_config(
             model_path=model_path,
             source_path=packaged,
